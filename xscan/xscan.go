@@ -1,46 +1,69 @@
 package xscan
 
 import (
-	"os/exec"
-	"bytes"
-	"strings"
 	"errors"
 	"fmt"
-	"io"
+	"glider/tool"
+	"regexp"
+	"strings"
 )
 
 // Scans the currently open x windows and sees which ones have focus
 type Scanner interface {
-	CurrentWindowName() (string, error)
+	CurrentWindow() (Window, error)
+}
+
+type Window struct {
+	ApplicationName string
+	Title           string
+	PID             string
+	WindowID        string
 }
 
 func New() Scanner {
 	return scannerImpl{}
 }
 
-type scannerImpl struct {}
+type scannerImpl struct{}
 
-func (scannerImpl) CurrentWindowName() (string, error) {
-	pidAndTitle, err := runCommand("xdotool", "getwindowfocus", "getwindowpid", "getwindowname")
+func (scannerImpl) CurrentWindow() (Window, error) {
+	pidTitleWindow, err := tool.Run(
+		"xdotool",
+		"getwindowfocus", "getwindowpid", "getwindowname", "getwindowfocus")
 	if err != nil {
-		return "", err
+		return Window{}, err
 	}
-	splitPidAndTitle := strings.Split(pidAndTitle, "/")
-	if len(splitPidAndTitle) != 2 {
-		return "", errors.New(fmt.Sprintf("unexpected output from xdotool %s", pidAndTitle))
+	split := strings.Split(strings.TrimSpace(pidTitleWindow), "\n")
+	if len(split) != 3 {
+		return Window{}, errors.New(fmt.Sprintf("unexpected output from xdotool %s", pidTitleWindow))
 	}
-	pid := splitPidAndTitle[0]
-	title := splitPidAndTitle[1]
+	pid := strings.TrimSpace(split[0])
+	title := strings.TrimSpace(split[1])
+	windowID := strings.TrimSpace(split[2])
 
-	processName, err := runCommand("ps", "-p", pid, "-o", "comm=")
+	xprops, err := tool.Run("xprop", "-id", windowID)
 	if err != nil {
-		return "", err
+		return Window{}, err
 	}
-	return fmt.Sprintf("Process: %s, Title: %s", processName, title), nil
+
+	return Window{
+		ApplicationName: applicationNameFromXProps(xprops),
+		Title:           title,
+		PID:             pid,
+		WindowID:        windowID,
+	}, nil
 }
 
-func runCommand(name string, args ...string) (string, error) {
-	cmd := exec.Command(name, args...)
-	stdout, err := cmd.CombinedOutput()
-	return string(stdout), err
+var nameRegex = regexp.MustCompile(`WM_CLASS.*"(?P<Name>\S*)"$`)
+
+func applicationNameFromXProps(xprops string) string {
+	for _, line := range strings.Split(xprops, "\n") {
+		matches := nameRegex.FindStringSubmatch(line)
+		if matches == nil {
+			continue
+		}
+		// We found the right line, extract the value out!
+		return matches[1]
+	}
+	return ""
 }

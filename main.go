@@ -2,20 +2,35 @@ package main
 
 import (
 	"fmt"
+	"glider/annoy"
 	"glider/xscan"
 	"time"
 )
 
+var sampleRate = 5 * time.Second
+
 func main() {
 	fmt.Println("Taking off!")
 	scanner := xscan.New()
+	annoyer := annoy.NewAnnoyer()
+	lastWindow := xscan.Window{}
 	for {
-		name, err := scanner.CurrentWindowName()
+		window, err := scanner.CurrentWindow()
 		if err != nil {
 			fmt.Printf("Encountered an error with xscan %v\n", err)
-		} else {
-			fmt.Printf("Currently focused window: %s\n", name)
 		}
-		time.Sleep(time.Duration(10 * time.Second))
+		duration := sampleRate
+		if window != lastWindow {
+			// If we switched into a new window, assume half the sample rate was spent on
+			// the new window (on average).
+			duration /= 2
+		}
+		annoyed := annoyer.MaybeAnnoy(window, sampleRate/2)
+		if annoyed {
+			fmt.Println("Annoyed for window: ", window)
+			annoyer.Clear(window)
+		}
+		lastWindow = window
+		time.Sleep(sampleRate)
 	}
 }
