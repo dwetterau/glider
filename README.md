@@ -18,17 +18,18 @@ Longer term, this tool might (or might not):
 - X11
 - Go
 - Only tested on Ubuntu (needs `notify-send` on path to send notifications)
+- `xdotool`
 
 ## Setup
 
-Install `xdotool`
+Fetch the code from this repo.
 
 ```
-apt install xdotool
+$ go get github.com/dwetterau/glider
 ```
 
 Then run the main binary.
 
 ```
-$ go run glider/main.go
+$ go run github.com/dwetterau/glider/main.go
 ```

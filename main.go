@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"glider/annoy"
-	"glider/xscan"
 	"time"
+
+	"github.com/dwetterau/glider/annoy"
+	"github.com/dwetterau/glider/xscan"
 )
 
 var sampleRate = 5 * time.Second

@@ -3,9 +3,10 @@ package xscan
 import (
 	"errors"
 	"fmt"
-	"glider/tool"
 	"regexp"
 	"strings"
+
+	"github.com/dwetterau/glider/tool"
 )
 
 // Scans the currently open x windows and sees which ones have focus

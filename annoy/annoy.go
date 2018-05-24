@@ -1,10 +1,11 @@
 package annoy
 
 import (
-	"glider/tool"
-	"glider/xscan"
 	"regexp"
 	"time"
+
+	"github.com/dwetterau/glider/tool"
+	"github.com/dwetterau/glider/xscan"
 )
 
 type annoyingApplication int
@@ -15,9 +16,18 @@ const (
 	GMail
 )
 
-var thresholds = map[annoyingApplication]time.Duration{
-	Slack: 5 * time.Minute,
-	GMail: 5 * time.Minute,
+var thresholds = map[annoyingApplication]threshold{
+	Slack: {3 * time.Minute, .5},
+	GMail: {5 * time.Minute, 10},
+}
+
+type threshold struct {
+	// The annoyer will annoy if an application accumulates this amount of duration.
+	bucketSize time.Duration
+
+	// A value in [0, inf) that is multiplied by the time elapsed and subtracted from the
+	// accumulated bucket when the application is not active.
+	drainFactor float64
 }
 
 type Annoyer interface {
@@ -27,7 +37,7 @@ type Annoyer interface {
 
 func NewAnnoyer() Annoyer {
 	return &annoyerImpl{
-		durations: map[annoyingApplication]time.Duration{
+		buckets: map[annoyingApplication]time.Duration{
 			Unknown: 0,
 			Slack:   0,
 			GMail:   0,
@@ -36,24 +46,38 @@ func NewAnnoyer() Annoyer {
 }
 
 type annoyerImpl struct {
-	durations map[annoyingApplication]time.Duration
+	buckets map[annoyingApplication]time.Duration
 }
 
 func (a *annoyerImpl) MaybeAnnoy(window xscan.Window, duration time.Duration) bool {
 	application := classify(window)
+	a.drainBuckets(application, duration)
 	if application == Unknown {
 		return false
 	}
 
-	a.durations[application] += duration
-	if a.durations[application] > thresholds[application] {
+	a.buckets[application] += duration
+	if a.buckets[application] > thresholds[application].bucketSize {
 		tool.Run("notify-send", "Glider", message(application))
 		return true
+	}
+	return false
+}
+
+func (a *annoyerImpl) drainBuckets(curApplication annoyingApplication, duration time.Duration) {
+	for application, bucket := range a.buckets {
+		if application == curApplication {
+			continue
+		}
+		a.buckets[application] = bucket - time.Duration(thresholds[application].drainFactor*float64(duration))
+		if a.buckets[application] < 0 {
+			a.buckets[application] = 0
+		}
 	}
 }
 
 func (a *annoyerImpl) Clear(window xscan.Window) {
-	a.durations[classify(window)] = 0
+	a.buckets[classify(window)] = 0
 }
 
 var (
