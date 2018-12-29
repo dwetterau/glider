@@ -80,7 +80,7 @@ func process(event messenger.Messaging) error {
 	if err != nil {
 		return err
 	}
-	url := fmt.Sprintf(messenger.FacebookAPI, os.Getenv("FB_ACCESS_TOKEN"))
+	url := fmt.Sprintf(messenger.FacebookAPI, os.Getenv("FB_PAGE_ACCESS_TOKEN"))
 	req, err := http.NewRequest("POST", url, body)
 	if err != nil {
 		return err
