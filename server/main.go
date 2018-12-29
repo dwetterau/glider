@@ -8,6 +8,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+
+	"glider/server/messenger"
 )
 
 func main() {
@@ -17,6 +19,7 @@ func main() {
 	flag.Parse()
 
 	http.HandleFunc("/webhook", webhookHandler)
+	fmt.Println("Listening on", port)
 	err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 	if err != nil {
 		log.Fatal(err)
@@ -36,7 +39,7 @@ func webhookHandler(w http.ResponseWriter, req *http.Request) {
 			w.Write([]byte("wrong validation token"))
 		}
 	} else if req.Method == "POST" {
-		var callback Callback
+		var callback messenger.Callback
 		err := json.NewDecoder(req.Body).Decode(&callback)
 		if err != nil {
 			w.WriteHeader(500)
@@ -62,13 +65,13 @@ func webhookHandler(w http.ResponseWriter, req *http.Request) {
 	w.Write([]byte("unsupported method"))
 }
 
-func process(event Messaging) error {
+func process(event messenger.Messaging) error {
 	client := &http.Client{}
-	response := Response{
-		Recipient: User{
+	response := messenger.Response{
+		Recipient: messenger.User{
 			ID: event.Sender.ID,
 		},
-		Message: Message{
+		Message: messenger.Message{
 			Text: "Got your message!",
 		},
 	}
@@ -77,7 +80,7 @@ func process(event Messaging) error {
 	if err != nil {
 		return err
 	}
-	url := fmt.Sprintf(FacebookAPI, os.Getenv("FB_ACCESS_TOKEN"))
+	url := fmt.Sprintf(messenger.FacebookAPI, os.Getenv("FB_ACCESS_TOKEN"))
 	req, err := http.NewRequest("POST", url, body)
 	if err != nil {
 		return err
