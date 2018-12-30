@@ -18,12 +18,18 @@ func main() {
 	flag.IntVar(&port, "port", port, "The port to listen on")
 	flag.Parse()
 
+	http.HandleFunc("/", helloHandler)
 	http.HandleFunc("/webhook", webhookHandler)
 	fmt.Println("Listening on", port)
 	err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func helloHandler(w http.ResponseWriter, req *http.Request) {
+	w.WriteHeader(200)
+	w.Write([]byte("Nothing to see here."))
 }
 
 func webhookHandler(w http.ResponseWriter, req *http.Request) {
