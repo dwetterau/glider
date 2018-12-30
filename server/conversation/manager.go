@@ -71,7 +71,7 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 	curState, ok := m.currentMessages[fbID]
 	if !ok {
 		if command != "start" {
-			return "Sorry, your conversation timed out. Please start again"
+			return "Sorry, your conversation might have timed out. Please start again"
 		}
 		// Start a new message!
 		m.currentMessages[fbID] = &state{
