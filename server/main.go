@@ -9,12 +9,14 @@ import (
 	"net/http"
 	"os"
 
+	"glider/server/db"
 	"glider/server/messenger"
 )
 
 const (
 	fbVerifyTokenEnvName     = "FB_VERIFY_TOKEN"
 	fbPageAccessTokenEnvName = "FB_PAGE_ACCESS_TOKEN"
+	dbLocationEnvName        = "DB_LOCATION"
 )
 
 func main() {
@@ -24,16 +26,22 @@ func main() {
 	flag.Parse()
 
 	// Verify expected env variables
-	for _, name := range []string{fbVerifyTokenEnvName, fbPageAccessTokenEnvName} {
+	for _, name := range []string{fbVerifyTokenEnvName, fbPageAccessTokenEnvName, dbLocationEnvName} {
 		if os.Getenv(name) == "" {
 			log.Fatal("Missing env var: ", name)
 		}
 	}
 
+	// Set up the db
+	_, err := db.NewSQLite(os.Getenv(dbLocationEnvName))
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	http.HandleFunc("/", helloHandler)
 	http.HandleFunc("/webhook", webhookHandler)
 	fmt.Println("Listening on", port)
-	err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+	err = http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 	if err != nil {
 		log.Fatal(err)
 	}
