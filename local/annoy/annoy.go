@@ -4,8 +4,8 @@ import (
 	"regexp"
 	"time"
 
-	"glider/tool"
-	"glider/xscan"
+	"github.com/dwetterau/glider/local/tool"
+	"github.com/dwetterau/glider/local/xscan"
 )
 
 type annoyingApplication int

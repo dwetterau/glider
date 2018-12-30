@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"glider/tool"
+	"github.com/dwetterau/glider/local/tool"
 )
 
 // Scans the currently open x windows and sees which ones have focus

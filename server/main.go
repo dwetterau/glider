@@ -9,9 +9,9 @@ import (
 	"net/http"
 	"os"
 
-	"glider/server/conversation"
-	"glider/server/db"
-	"glider/server/messenger"
+	"github.com/dwetterau/glider/server/conversation"
+	"github.com/dwetterau/glider/server/db"
+	"github.com/dwetterau/glider/server/messenger"
 )
 
 const (

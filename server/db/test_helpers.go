@@ -3,7 +3,7 @@ package db
 import (
 	"math/rand"
 
-	"glider/server/types"
+	"github.com/dwetterau/glider/server/types"
 )
 
 type testImpl struct {

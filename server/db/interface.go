@@ -4,8 +4,7 @@ import (
 	"database/sql"
 	"time"
 
-	"glider/server/types"
-
+	"github.com/dwetterau/glider/server/types"
 	_ "github.com/mattn/go-sqlite3"
 )
 

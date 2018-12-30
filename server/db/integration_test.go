@@ -7,8 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"glider/server/types"
-
+	"github.com/dwetterau/glider/server/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"glider/server/db"
-	"glider/server/types"
+	"github.com/dwetterau/glider/server/db"
+	"github.com/dwetterau/glider/server/types"
 )
 
 const messageTimeout = 5 * time.Minute

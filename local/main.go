@@ -1,11 +1,11 @@
-package main
+package local
 
 import (
 	"fmt"
 	"time"
 
-	"github.com/dwetterau/glider/annoy"
-	"github.com/dwetterau/glider/xscan"
+	"github.com/dwetterau/glider/local/annoy"
+	"github.com/dwetterau/glider/local/xscan"
 )
 
 var sampleRate = 5 * time.Second

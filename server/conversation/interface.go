@@ -1,7 +1,7 @@
 package conversation
 
 import (
-	"glider/server/db"
+	"github.com/dwetterau/glider/server/db"
 )
 
 type Manager interface {
