@@ -57,7 +57,8 @@ user_id INTEGER NOT NULL,
 type INTEGER NOT NULL,
 date INTEGER NOT NULL,
 time INTEGER NOT NULL,
-value TEXT NOT NULL
+value TEXT NOT NULL,
+raw_value TEXT NOT NULL
 )
 `
 
@@ -116,7 +117,9 @@ func (d *databaseImpl) AddUser(fbID string) (types.UserID, error) {
 }
 
 func (d *databaseImpl) AddActivity(userID types.UserID, activity types.Activity) (types.ActivityID, error) {
-	q, err := d.db.Prepare("INSERT INTO activity (user_id, type, date, time, value) VALUES (?, ?, ?, ?, ?)")
+	q, err := d.db.Prepare("INSERT INTO activity " +
+		"(user_id, type, date, time, value, raw_value) " +
+		"VALUES (?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		return 0, err
 	}
@@ -126,18 +129,19 @@ func (d *databaseImpl) AddActivity(userID types.UserID, activity types.Activity)
 		activity.UTCDate.Unix(),
 		activity.ActualTime.Unix(),
 		activity.Value,
+		activity.RawValue,
 	)
-	lastInsertID, err := res.LastInsertId()
 	if err != nil {
-		return 0, nil
+		return 0, err
 	}
+	lastInsertID, err := res.LastInsertId()
 	return types.ActivityID(lastInsertID), nil
 }
 
 func (d *databaseImpl) ActivityForUser(userID types.UserID) ([]types.Activity, error) {
 	// TODO: Pagination
 	activities := make([]types.Activity, 0)
-	q, err := d.db.Prepare("SELECT id, type, date, time, value FROM activity where user_id = ? ORDER BY id ASC")
+	q, err := d.db.Prepare("SELECT id, type, date, time, value, raw_value FROM activity where user_id = ? ORDER BY id ASC")
 	if err != nil {
 		return nil, err
 	}
@@ -154,6 +158,7 @@ func (d *databaseImpl) ActivityForUser(userID types.UserID) ([]types.Activity, e
 			&dateRaw,
 			&timeRaw,
 			&a.Value,
+			&a.RawValue,
 		)
 		if err != nil {
 			return nil, err

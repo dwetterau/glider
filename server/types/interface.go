@@ -19,4 +19,5 @@ type Activity struct {
 	UTCDate    time.Time
 	ActualTime time.Time
 	Value      string
+	RawValue   string
 }

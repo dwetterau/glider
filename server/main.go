@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 
+	"glider/server/conversation"
 	"glider/server/db"
 	"glider/server/messenger"
 )
@@ -33,13 +34,15 @@ func main() {
 	}
 
 	// Set up the db
-	_, err := db.NewSQLite(os.Getenv(dbLocationEnvName))
+	d, err := db.NewSQLite(os.Getenv(dbLocationEnvName))
 	if err != nil {
 		log.Fatal(err)
 	}
+	// Set up the conversation manager
+	manager := conversation.New(d)
 
 	http.HandleFunc("/", helloHandler)
-	http.HandleFunc("/webhook", webhookHandler)
+	http.HandleFunc("/webhook", webhookHandler(manager))
 	fmt.Println("Listening on", port)
 	err = http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 	if err != nil {
@@ -52,59 +55,65 @@ func helloHandler(w http.ResponseWriter, req *http.Request) {
 	w.Write([]byte("Nothing to see here."))
 }
 
-func webhookHandler(w http.ResponseWriter, req *http.Request) {
-	if req.Method == "GET" {
-		challenge := req.URL.Query().Get("hub.challenge")
-		token := req.URL.Query().Get("hub.verify_token")
+func webhookHandler(m conversation.Manager) func(w http.ResponseWriter, req *http.Request) {
+	return func(w http.ResponseWriter, req *http.Request) {
+		if req.Method == "GET" {
+			challenge := req.URL.Query().Get("hub.challenge")
+			token := req.URL.Query().Get("hub.verify_token")
 
-		if token == os.Getenv(fbVerifyTokenEnvName) {
-			w.WriteHeader(200)
-			w.Write([]byte(challenge))
-			return
-		} else {
-			w.WriteHeader(400)
-			w.Write([]byte("wrong validation token"))
-			return
-		}
-	} else if req.Method == "POST" {
-		var callback messenger.Callback
-		err := json.NewDecoder(req.Body).Decode(&callback)
-		if err != nil {
-			w.WriteHeader(500)
-			w.Write([]byte(err.Error()))
-			return
-		}
+			if token == os.Getenv(fbVerifyTokenEnvName) {
+				w.WriteHeader(200)
+				w.Write([]byte(challenge))
+				return
+			} else {
+				w.WriteHeader(400)
+				w.Write([]byte("wrong validation token"))
+				return
+			}
+		} else if req.Method == "POST" {
+			var callback messenger.Callback
+			err := json.NewDecoder(req.Body).Decode(&callback)
+			if err != nil {
+				w.WriteHeader(500)
+				w.Write([]byte(err.Error()))
+				return
+			}
 
-		if callback.Object == "page" {
-			for _, entry := range callback.Entry {
-				for _, event := range entry.Messaging {
-					err = process(event)
-					if err != nil {
-						log.Println("error processing message:", err, event)
+			if callback.Object == "page" {
+				for _, entry := range callback.Entry {
+					for _, event := range entry.Messaging {
+						err = process(m, event)
+						if err != nil {
+							log.Println("error processing message:", err, event)
+						}
 					}
 				}
+				w.WriteHeader(200)
+				w.Write([]byte("processed all messages"))
+				return
+			} else {
+				w.WriteHeader(400)
+				w.Write([]byte("unsupported callback type"))
+				return
 			}
-			w.WriteHeader(200)
-			w.Write([]byte("processed all messages"))
-			return
-		} else {
-			w.WriteHeader(400)
-			w.Write([]byte("unsupported callback type"))
-			return
 		}
+		w.WriteHeader(400)
+		w.Write([]byte("unsupported method"))
 	}
-	w.WriteHeader(400)
-	w.Write([]byte("unsupported method"))
 }
 
-func process(event messenger.Messaging) error {
+func process(m conversation.Manager, event messenger.Messaging) error {
 	client := &http.Client{}
+
+	// Process the message and generate a reply
+	reply := m.Handle(event.Sender.ID, event.Message.Text)
+
 	response := messenger.Response{
 		Recipient: messenger.User{
 			ID: event.Sender.ID,
 		},
 		Message: messenger.Message{
-			Text: "Got your message!",
+			Text: reply,
 		},
 	}
 	body := new(bytes.Buffer)
