@@ -20,6 +20,7 @@ type state struct {
 
 	currentActivityType types.ActivityType
 	activitiesToSave    []types.Activity
+	userID              types.UserID
 }
 
 type stateType int
@@ -28,6 +29,7 @@ const (
 	unknownStateType stateType = iota
 	askingActivityType
 	askingActivityValue
+	askingTimezone
 )
 
 type managerImpl struct {
@@ -71,7 +73,7 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 	curState, ok := m.currentMessages[fbID]
 	if !ok {
 		if command != "start" {
-			return "Sorry, your conversation might have timed out. Please start again"
+			return "Sorry, your conversation might have timed out. Please start again."
 		}
 		// Start a new message!
 		m.currentMessages[fbID] = &state{
@@ -93,7 +95,8 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 
 		// TODO: Do this without holding the map lock...
 		// Save the messages!
-		userID, err := m.database.AddUser(fbID)
+		// Note: This timezone value can always be changed later.
+		userID, _, err := m.database.AddUser(fbID, time.UTC)
 		if err != nil {
 			log.Println("Error adding user: ", err.Error())
 			return "Whoops, there was a problem saving your activity, try again shortly."
@@ -114,6 +117,15 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 
 	// Finally, update the activity however the user wants to.
 	if curState.currentState == askingActivityType {
+		if command == "timezone" {
+			userID, tz, err := m.database.AddUser(fbID, time.UTC)
+			if err != nil {
+				return "Whoops, there was a problem loading your current timezone, try again shortly."
+			}
+			curState.userID = userID
+			curState.currentState = askingTimezone
+			return fmt.Sprintf("Your current timezone is %s. What would you like to change it to?", tz)
+		}
 		if command != "overall" && command != "overall day" && command != "day" {
 			return "Sorry, I don't know what type of activity that is. " +
 				"Try saying something like \"overall\"."
@@ -161,6 +173,21 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 				"otherwise let me know what type of activity you want to record."
 		}
 		return "Sorry, the programmer messed this up. Please let them know."
+	} else if curState.currentState == askingTimezone {
+		// Try to parse the timezone
+		tz, err := time.LoadLocation(message)
+		if err != nil {
+			return "Sorry, I don't know what timezone that is. Please try again."
+		}
+
+		// Now save the timezone
+		err = m.database.SetTimezone(curState.userID, tz)
+		if err != nil {
+			return "Whoops, there was a problem saving your timezone, try again shortly."
+		}
+
+		curState.currentState = askingActivityType
+		return "Thanks! Now what kind of activity would you like to record?"
 	}
 	return "Sorry, I can't understand what you're saying. You can say \"help\" for some help getting started."
 }
