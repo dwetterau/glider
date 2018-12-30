@@ -78,6 +78,7 @@ func webhookHandler(w http.ResponseWriter, req *http.Request) {
 			}
 			w.WriteHeader(200)
 			w.Write([]byte("processed all messages"))
+			return
 		} else {
 			w.WriteHeader(400)
 			w.Write([]byte("unsupported callback type"))
