@@ -12,11 +12,23 @@ import (
 	"glider/server/messenger"
 )
 
+const (
+	fbVerifyTokenEnvName     = "FB_VERIFY_TOKEN"
+	fbPageAccessTokenEnvName = "FB_PAGE_ACCESS_TOKEN"
+)
+
 func main() {
 	port := 8080
 
 	flag.IntVar(&port, "port", port, "The port to listen on")
 	flag.Parse()
+
+	// Verify expected env variables
+	for _, name := range []string{fbVerifyTokenEnvName, fbPageAccessTokenEnvName} {
+		if os.Getenv(name) == "" {
+			log.Fatal("Missing env var: ", name)
+		}
+	}
 
 	http.HandleFunc("/", helloHandler)
 	http.HandleFunc("/webhook", webhookHandler)
@@ -37,12 +49,14 @@ func webhookHandler(w http.ResponseWriter, req *http.Request) {
 		challenge := req.URL.Query().Get("hub.challenge")
 		token := req.URL.Query().Get("hub.verify_token")
 
-		if token == os.Getenv("FB_VERIFY_TOKEN") {
+		if token == os.Getenv(fbVerifyTokenEnvName) {
 			w.WriteHeader(200)
 			w.Write([]byte(challenge))
+			return
 		} else {
 			w.WriteHeader(400)
 			w.Write([]byte("wrong validation token"))
+			return
 		}
 	} else if req.Method == "POST" {
 		var callback messenger.Callback
@@ -65,6 +79,7 @@ func webhookHandler(w http.ResponseWriter, req *http.Request) {
 		} else {
 			w.WriteHeader(400)
 			w.Write([]byte("unsupported callback type"))
+			return
 		}
 	}
 	w.WriteHeader(400)
@@ -86,7 +101,7 @@ func process(event messenger.Messaging) error {
 	if err != nil {
 		return err
 	}
-	url := fmt.Sprintf(messenger.FacebookAPI, os.Getenv("FB_PAGE_ACCESS_TOKEN"))
+	url := fmt.Sprintf(messenger.FacebookAPI, os.Getenv(fbPageAccessTokenEnvName))
 	req, err := http.NewRequest("POST", url, body)
 	if err != nil {
 		return err
