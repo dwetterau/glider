@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/dwetterau/glider/server/types"
@@ -9,7 +10,8 @@ import (
 )
 
 type Database interface {
-	AddUser(fbID string) (types.UserID, error)
+	AddUser(fbID string, timezone *time.Location) (types.UserID, string, error)
+	SetTimezone(userID types.UserID, tz *time.Location) error
 	AddActivity(userID types.UserID, activity types.Activity) (types.ActivityID, error)
 	ActivityForUser(userID types.UserID) ([]types.Activity, error)
 }
@@ -42,7 +44,8 @@ func NewSQLite(sourcePath string) (Database, error) {
 const userTableCreateSchema = `
 CREATE TABLE IF NOT EXISTS users (
 id INTEGER PRIMARY KEY, 
-fb_id TEXT NOT NULL
+fb_id TEXT NOT NULL,
+timezone TEXT NOT NULL
 )`
 
 const userTableIndexCreateShchema = `
@@ -71,48 +74,68 @@ type databaseImpl struct {
 
 var _ Database = &databaseImpl{}
 
-func (d *databaseImpl) AddUser(fbID string) (types.UserID, error) {
+func (d *databaseImpl) AddUser(fbID string, timezone *time.Location) (types.UserID, string, error) {
 	tx, err := d.db.Begin()
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
-	q, err := tx.Prepare("SELECT id FROM users WHERE fb_id = ?")
+	q, err := tx.Prepare("SELECT id, timezone FROM users WHERE fb_id = ?")
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
 	rows, err := q.Query(fbID)
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
 	for rows.Next() {
 		var userID types.UserID
-		err = rows.Scan(&userID)
+		var timezone string
+		err = rows.Scan(&userID, &timezone)
 		if err != nil {
-			return 0, err
+			return 0, "", err
 		}
 		err = tx.Rollback()
 		if err != nil {
-			return 0, err
+			return 0, "", err
 		}
-		return userID, nil
+		return userID, timezone, nil
 	}
 
 	// Otherwise, we need to insert the user
-	q, err = tx.Prepare("INSERT INTO users (fb_id) VALUES (?)")
+	q, err = tx.Prepare("INSERT INTO users (fb_id, timezone) VALUES (?, ?)")
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
-	res, err := q.Exec(fbID)
+	res, err := q.Exec(fbID, timezone.String())
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
 
 	lastInsertID, err := res.LastInsertId()
 	err = tx.Commit()
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
-	return types.UserID(lastInsertID), nil
+	return types.UserID(lastInsertID), timezone.String(), nil
+}
+
+func (d *databaseImpl) SetTimezone(userID types.UserID, timezone *time.Location) error {
+	q, err := d.db.Prepare("UPDATE users SET timezone = ? WHERE id = ?")
+	if err != nil {
+		return err
+	}
+	res, err := q.Exec(timezone.String(), userID)
+	if err != nil {
+		return err
+	}
+	numChanged, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if numChanged != 1 {
+		return errors.New("changed not enough or too many rows")
+	}
+	return nil
 }
 
 func (d *databaseImpl) AddActivity(userID types.UserID, activity types.Activity) (types.ActivityID, error) {

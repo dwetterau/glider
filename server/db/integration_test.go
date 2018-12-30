@@ -28,39 +28,80 @@ func TestAddUser(t *testing.T) {
 	d, toDefer := initDB(t)
 	defer toDefer()
 
-	id1, err := d.AddUser("test1")
+	cali, err := time.LoadLocation("America/Los_Angeles")
 	require.NoError(t, err)
-	assert.Equal(t, id1, types.UserID(1))
+
+	id1, tz1, err := d.AddUser("test1", time.UTC)
+	require.NoError(t, err)
+	assert.Equal(t, types.UserID(1), id1)
+	assert.Equal(t, time.UTC.String(), tz1)
 
 	// Inserting it again should return the same id
-	id1, err = d.AddUser("test1")
+	id1, tz1, err = d.AddUser("test1", time.UTC)
 	require.NoError(t, err)
-	assert.Equal(t, id1, types.UserID(1))
+	assert.Equal(t, types.UserID(1), id1)
+	assert.Equal(t, time.UTC.String(), tz1)
 
 	// Now do it all again and expect userID 2 this time
-	id2, err := d.AddUser("test2")
+	id2, tz2, err := d.AddUser("test2", cali)
 	require.NoError(t, err)
-	assert.Equal(t, id2, types.UserID(2))
+	assert.Equal(t, types.UserID(2), id2)
+	assert.Equal(t, cali.String(), tz2)
 
 	// Inserting it again should return the same id
-	id2, err = d.AddUser("test2")
+	id2, tz2, err = d.AddUser("test2", cali)
 	require.NoError(t, err)
-	assert.Equal(t, id2, types.UserID(2))
+	assert.Equal(t, types.UserID(2), id2)
+	assert.Equal(t, cali.String(), tz2)
 
 	// Sanity check the first user still
-	id1, err = d.AddUser("test1")
+	id1, tz1, err = d.AddUser("test1", time.UTC)
 	require.NoError(t, err)
-	assert.Equal(t, id1, types.UserID(1))
+	assert.Equal(t, types.UserID(1), id1)
+	assert.Equal(t, time.UTC.String(), tz1)
+}
+
+func TestSetTimezone(t *testing.T) {
+	d, toDefer := initDB(t)
+	defer toDefer()
+
+	id1, tz1, err := d.AddUser("test1", time.UTC)
+	require.NoError(t, err)
+	assert.Equal(t, time.UTC.String(), tz1)
+
+	cali, err := time.LoadLocation("America/Los_Angeles")
+	require.NoError(t, err)
+
+	// Inserting it again should return the original timezone
+	id1, tz1, err = d.AddUser("test1", cali)
+	require.NoError(t, err)
+	assert.Equal(t, time.UTC.String(), tz1)
+
+	// Insert another user to be sure
+	_, tz2, err := d.AddUser("test2", time.UTC)
+	require.NoError(t, err)
+
+	err = d.SetTimezone(id1, cali)
+	require.NoError(t, err)
+
+	// Now check the timezones again
+	id1, tz1, err = d.AddUser("test1", cali)
+	require.NoError(t, err)
+	assert.Equal(t, cali.String(), tz1)
+
+	_, tz2, err = d.AddUser("test2", cali)
+	require.NoError(t, err)
+	assert.Equal(t, time.UTC.String(), tz2)
 }
 
 func TestAddActivities(t *testing.T) {
 	d, toDefer := initDB(t)
 	defer toDefer()
 
-	userID1, err := d.AddUser("test1")
+	userID1, _, err := d.AddUser("test1", time.UTC)
 	require.NoError(t, err)
 
-	userID2, err := d.AddUser("test2")
+	userID2, _, err := d.AddUser("test2", time.UTC)
 	require.NoError(t, err)
 
 	utcTime := time.Unix(1239017850, 0)
