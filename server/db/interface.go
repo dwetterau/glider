@@ -61,7 +61,9 @@ type INTEGER NOT NULL,
 date INTEGER NOT NULL,
 time INTEGER NOT NULL,
 value TEXT NOT NULL,
-raw_value TEXT NOT NULL
+raw_messages TEXT NOT NULL,
+duration INTEGER NOT NULL,
+count INTEGER NOT NULL
 )
 `
 
@@ -173,7 +175,7 @@ func (d *databaseImpl) AddOrUpdateActivity(userID types.UserID, activity types.A
 	}
 	if existingID != -1 {
 		q, err = tx.Prepare("UPDATE activity SET " +
-			"time = ?, value = ?, raw_value = ? " +
+			"time = ?, value = ?, raw_messages = ?, duration = ?, count = ?" +
 			"WHERE id = ?")
 		if err != nil {
 			return 0, err
@@ -182,6 +184,8 @@ func (d *databaseImpl) AddOrUpdateActivity(userID types.UserID, activity types.A
 			activity.ActualTime.Unix(),
 			activity.Value,
 			activity.RawMessages,
+			activity.Duration.Nanoseconds(),
+			activity.Count,
 			existingID,
 		)
 		if err != nil {
@@ -200,8 +204,8 @@ func (d *databaseImpl) AddOrUpdateActivity(userID types.UserID, activity types.A
 		return existingID, nil
 	}
 	q, err = tx.Prepare("INSERT INTO activity " +
-		"(user_id, type, date, time, value, raw_value) " +
-		"VALUES (?, ?, ?, ?, ?, ?)")
+		"(user_id, type, date, time, value, raw_messages, duration, count) " +
+		"VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		return 0, err
 	}
@@ -212,6 +216,8 @@ func (d *databaseImpl) AddOrUpdateActivity(userID types.UserID, activity types.A
 		activity.ActualTime.Unix(),
 		activity.Value,
 		activity.RawMessages,
+		activity.Duration.Nanoseconds(),
+		activity.Count,
 	)
 	if err != nil {
 		return 0, err
@@ -230,7 +236,9 @@ func (d *databaseImpl) AddOrUpdateActivity(userID types.UserID, activity types.A
 func (d *databaseImpl) ActivityForUser(userID types.UserID) ([]types.Activity, error) {
 	// TODO: Pagination
 	activities := make([]types.Activity, 0)
-	q, err := d.db.Prepare("SELECT id, type, date, time, value, raw_value FROM activity where user_id = ? ORDER BY id ASC")
+	q, err := d.db.Prepare("SELECT " +
+		"id, type, date, time, value, raw_messages, duration, count " +
+		"FROM activity where user_id = ? ORDER BY id ASC")
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +248,7 @@ func (d *databaseImpl) ActivityForUser(userID types.UserID) ([]types.Activity, e
 	}
 	for rows.Next() {
 		a := types.Activity{}
-		var dateRaw, timeRaw int64
+		var dateRaw, timeRaw, durationRaw int64
 		err = rows.Scan(
 			&a.ID,
 			&a.Type,
@@ -248,6 +256,8 @@ func (d *databaseImpl) ActivityForUser(userID types.UserID) ([]types.Activity, e
 			&timeRaw,
 			&a.Value,
 			&a.RawMessages,
+			&durationRaw,
+			&a.Count,
 		)
 		if err != nil {
 			return nil, err
@@ -255,6 +265,7 @@ func (d *databaseImpl) ActivityForUser(userID types.UserID) ([]types.Activity, e
 		// Parse the dates properly
 		a.UTCDate = time.Unix(dateRaw, 0)
 		a.ActualTime = time.Unix(timeRaw, 0)
+		a.Duration = time.Duration(durationRaw)
 
 		activities = append(activities, a)
 	}

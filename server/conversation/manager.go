@@ -128,13 +128,13 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 			)
 		}
 
-		activityType, startMessage := determineActivityType(command)
+		activityType, startMessage, startState := determineActivityType(command)
 		if activityType == types.ActivityUnknown {
 			return "Sorry, I don't know what type of activity that is. " +
 				"Try saying something like \"overall\"."
 		}
 		curState.currentActivityType = activityType
-		curState.currentState = askingActivityValue
+		curState.currentState = startState
 		return startMessage
 	} else if _, ok := activityValues[curState.currentState]; ok {
 		activity, nextState, response := handleResponse(
@@ -158,16 +158,16 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 		} else {
 			// Append another message
 			// TODO: Strip out newlines from this
-			activity.RawMessages = strings.Join([]string{activity.RawMessages, message}, "\n")
+			curState.activity.RawMessages += "\n" + message
 		}
 
 		// Copy over fields based off the current thing we asked the user about
 		if curState.currentState == askingActivityValue {
 			curState.activity.Value = activity.Value
 		} else if curState.currentState == askingActivityCount {
-			// TODO
+			curState.activity.Count = activity.Count
 		} else if curState.currentState == askingActivityDuration {
-			// TODO
+			curState.activity.Duration = activity.Duration
 		} else {
 			return "Sorry, the programmer messed this up. Please let them know."
 		}
@@ -224,11 +224,14 @@ func nowAndUTCDate(userTimezone *time.Location) (time.Time, time.Time) {
 	return now, utcDate
 }
 
-func determineActivityType(command string) (types.ActivityType, string) {
+func determineActivityType(command string) (types.ActivityType, string, stateType) {
 	if command == "overall" || command == "overall day" || command == "day" {
-		return types.ActivityOverallDay, "How was your day?"
+		return types.ActivityOverallDay, "How was your day?", askingActivityValue
 	}
-	return types.ActivityUnknown, ""
+	if command == "programming" || command == "programmed" || command == "wrote code" || command == "coded" {
+		return types.ActivityProgramming, "How long did you program for?", askingActivityDuration
+	}
+	return types.ActivityUnknown, "", unknownStateType
 }
 
 // Handlers here must fill in the value fields, everything else is handled above this layer.
@@ -242,13 +245,14 @@ func handleResponse(
 	if activityType == types.ActivityOverallDay {
 		return handleOverallDay(command, currentState)
 	}
+	if activityType == types.ActivityProgramming {
+		return handleProgramming(command, currentState)
+	}
 	return nil, unknownStateType, "Sorry, the programmer messed this up. Please let them know."
 }
 
-func handleOverallDay(command string, currentState stateType) (*types.Activity, stateType, string) {
-	if currentState != askingActivityValue {
-		return nil, unknownStateType, "Sorry, the programmer messed this up. Please let them know."
-	}
+// Returns the canonical value, or an error message
+func parseActivityValue(command string) (string, string) {
 	val, ok := map[string]string{
 		"terrible":  "terrible",
 		"awful":     "terrible",
@@ -258,15 +262,43 @@ func handleOverallDay(command string, currentState stateType) (*types.Activity, 
 		"fine":      "neutral",
 		"ok":        "neutral",
 		"alright":   "neutral",
+		"meh":       "neutral",
 		"good":      "good",
 		"great":     "great",
 		"awesome":   "great",
 		"fantastic": "great",
 	}[command]
 	if !ok {
-		return nil, askingActivityType, "Sorry, I don't understand what that means, try saying something like \"ok\" or \"great\"!"
+		return "", "Sorry, I don't understand what that means, try saying something like \"ok\" or \"great\"!"
 	}
-	return &types.Activity{
-		Value: val,
-	}, askingActivityType, ""
+	return val, ""
+}
+
+func handleOverallDay(command string, currentState stateType) (*types.Activity, stateType, string) {
+	if currentState != askingActivityValue {
+		return nil, unknownStateType, "Sorry, the programmer messed this up. Please let them know."
+	}
+	val, errorMessage := parseActivityValue(command)
+	if len(errorMessage) > 0 {
+		return nil, askingActivityValue, errorMessage
+	}
+	return &types.Activity{Value: val}, askingActivityType, ""
+}
+
+func handleProgramming(command string, currentState stateType) (*types.Activity, stateType, string) {
+	if currentState == askingActivityDuration {
+		d, err := time.ParseDuration(command)
+		if err != nil {
+			return nil, askingActivityDuration, "Sorry, I can't understand that duration value."
+		}
+		return &types.Activity{Duration: d}, askingActivityValue, "Okay, and how did you feel about that?"
+	} else if currentState == askingActivityValue {
+		val, errorMessage := parseActivityValue(command)
+		if len(errorMessage) > 0 {
+			return nil, askingActivityValue, errorMessage
+		}
+		return &types.Activity{Value: val}, askingActivityType, ""
+	} else {
+		return nil, unknownStateType, "Sorry, the programmer messed this up. Please let them know."
+	}
 }

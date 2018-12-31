@@ -11,6 +11,7 @@ type ActivityType int64
 const (
 	ActivityUnknown ActivityType = iota
 	ActivityOverallDay
+	ActivityProgramming
 )
 
 type Activity struct {
@@ -19,5 +20,7 @@ type Activity struct {
 	UTCDate     time.Time
 	ActualTime  time.Time
 	Value       string
+	Count       int64
+	Duration    time.Duration
 	RawMessages string
 }

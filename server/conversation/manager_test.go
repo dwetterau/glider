@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestEndToEnd(t *testing.T) {
+func TestOverallDay(t *testing.T) {
 	impl := &managerImpl{
 		database:        db.TestOnlyMockImpl(),
 		currentMessages: make(map[string]*state),
@@ -38,9 +38,9 @@ func TestEndToEnd(t *testing.T) {
 	require.NoError(t, err)
 	activities, err := impl.database.ActivityForUser(userID)
 	assert.Len(t, activities, 1)
-	assert.Equal(t, activities[0].Type, types.ActivityOverallDay)
-	assert.Equal(t, activities[0].Value, "great")
-	assert.Equal(t, activities[0].RawMessages, "AWESOME")
+	assert.Equal(t, types.ActivityOverallDay, activities[0].Type)
+	assert.Equal(t, "great", activities[0].Value)
+	assert.Equal(t, "AWESOME", activities[0].RawMessages)
 }
 
 func TestSetTimezone(t *testing.T) {
@@ -70,4 +70,38 @@ func TestSetTimezone(t *testing.T) {
 	_, tz, err := impl.database.AddOrGetUser("fb1", time.UTC)
 	require.NoError(t, err)
 	assert.Equal(t, "America/Los_Angeles", tz.String())
+}
+
+func TestProgramming(t *testing.T) {
+	impl := &managerImpl{
+		database:        db.TestOnlyMockImpl(),
+		currentMessages: make(map[string]*state),
+	}
+
+	inputs := []string{
+		"Start",
+		"wrote CODE",
+		"10m",
+		"meh",
+	}
+	outputs := make([]string, 0, len(inputs))
+	for _, input := range inputs {
+		outputs = append(outputs, impl.Handle("fb1", input))
+	}
+	expectedOutputs := []string{
+		"Hello! What type of activity do you want to record?",
+		"How long did you program for?",
+		"Okay, and how did you feel about that?",
+		"I finished writing that down, what activity type would you like to record next?",
+	}
+	assert.Equal(t, expectedOutputs, outputs)
+
+	userID, _, err := impl.database.AddOrGetUser("fb1", time.UTC)
+	require.NoError(t, err)
+	activities, err := impl.database.ActivityForUser(userID)
+	assert.Len(t, activities, 1)
+	assert.Equal(t, types.ActivityProgramming, activities[0].Type)
+	assert.Equal(t, 10*time.Minute, activities[0].Duration)
+	assert.Equal(t, "neutral", activities[0].Value)
+	assert.Equal(t, "10m\nmeh", activities[0].RawMessages)
 }

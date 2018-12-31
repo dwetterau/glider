@@ -109,7 +109,10 @@ func TestAddActivities(t *testing.T) {
 	activities := []types.Activity{
 		{ID: 1, Type: types.ActivityOverallDay, UTCDate: utcTime, ActualTime: realTime, Value: "val1", RawMessages: "v1"},
 		{ID: 2, Type: types.ActivityUnknown, UTCDate: utcTime, ActualTime: realTime, Value: "val2", RawMessages: "v2"},
-		{ID: 3, Type: types.ActivityOverallDay, UTCDate: utcTime, ActualTime: realTime, Value: "val3", RawMessages: "v3"},
+		{
+			ID: 3, Type: types.ActivityOverallDay, UTCDate: utcTime, ActualTime: realTime,
+			Value: "val3", RawMessages: "v3\nother stuff", Duration: time.Minute, Count: 123,
+		},
 	}
 
 	activityID1, err := d.AddOrUpdateActivity(userID1, activities[0])
