@@ -243,6 +243,12 @@ func determineActivityType(command string) (types.ActivityType, string, stateTyp
 	if command == "reading" || command == "read" {
 		return types.ActivityReading, "How many pages did you read?", askingActivityCount
 	}
+	if command == "yoga" {
+		return types.ActivityYoga, "How was it?", askingActivityValue
+	}
+	if command == "climbing" {
+		return types.ActivityClimbing, "How long did you climb for?", askingActivityDuration
+	}
 	return types.ActivityUnknown, "", unknownStateType
 }
 
@@ -297,6 +303,13 @@ var handlerMap = map[types.ActivityType]map[stateType]successAndNextState{
 		},
 		askingActivityDuration: sentiment,
 		askingActivityValue:    done,
+	},
+	types.ActivityClimbing: {
+		askingActivityDuration: sentiment,
+		askingActivityValue:    done,
+	},
+	types.ActivityYoga: {
+		askingActivityValue: done,
 	},
 }
 

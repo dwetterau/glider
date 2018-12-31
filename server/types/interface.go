@@ -9,6 +9,7 @@ type ActivityID int64
 type ActivityType int64
 
 const (
+	// WARNING: Only append to this list! The enum values are in a DB.
 	ActivityUnknown ActivityType = iota
 	ActivityOverallDay
 	ActivityProgramming
@@ -16,6 +17,8 @@ const (
 	ActivityRunning
 	ActivityMeetings
 	ActivityReading
+	ActivityYoga
+	ActivityClimbing
 )
 
 type Activity struct {

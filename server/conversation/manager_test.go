@@ -196,3 +196,42 @@ func TestReading(t *testing.T) {
 		RawMessages: strings.Join(inputs[2:], "\n"),
 	})
 }
+
+func TestClimbing(t *testing.T) {
+	inputs := []string{
+		"Start",
+		"climbing",
+		"2h",
+		"great",
+	}
+	expectedOutputs := []string{
+		"Hello! What type of activity do you want to record?",
+		"How long did you climb for?",
+		"Okay, and how did you feel about that?",
+		"I finished writing that down, what activity type would you like to record next?",
+	}
+	runTest(t, inputs, expectedOutputs, types.Activity{
+		Type:        types.ActivityClimbing,
+		Duration:    2 * time.Hour,
+		Value:       "great",
+		RawMessages: strings.Join(inputs[2:], "\n"),
+	})
+}
+
+func TestYoga(t *testing.T) {
+	inputs := []string{
+		"Start",
+		"yoga",
+		"great",
+	}
+	expectedOutputs := []string{
+		"Hello! What type of activity do you want to record?",
+		"How was it?",
+		"I finished writing that down, what activity type would you like to record next?",
+	}
+	runTest(t, inputs, expectedOutputs, types.Activity{
+		Type:        types.ActivityYoga,
+		Value:       "great",
+		RawMessages: strings.Join(inputs[2:], "\n"),
+	})
+}
