@@ -234,6 +234,15 @@ func determineActivityType(command string) (types.ActivityType, string, stateTyp
 	if command == "laundry" {
 		return types.ActivityLaundry, "How many loads of laundry did you do?", askingActivityCount
 	}
+	if command == "ran" || command == "went for a run" || command == "running" || command == "went running" {
+		return types.ActivityRunning, "How far did you run in miles?", askingActivityCount
+	}
+	if command == "met" || command == "meeting" || command == "meetings" {
+		return types.ActivityMeetings, "How many meetings did you go to?", askingActivityCount
+	}
+	if command == "reading" || command == "read" {
+		return types.ActivityReading, "How many pages did you read?", askingActivityCount
+	}
 	return types.ActivityUnknown, "", unknownStateType
 }
 
@@ -264,6 +273,30 @@ var handlerMap = map[types.ActivityType]map[stateType]successAndNextState{
 	types.ActivityLaundry: {
 		askingActivityCount: sentiment,
 		askingActivityValue: done,
+	},
+	types.ActivityRunning: {
+		askingActivityCount: successAndNextState{
+			successMessage: "How long did you run for?",
+			nextState:      askingActivityDuration,
+		},
+		askingActivityDuration: sentiment,
+		askingActivityValue:    done,
+	},
+	types.ActivityMeetings: {
+		askingActivityCount: successAndNextState{
+			successMessage: "What was the total time you spent in meetings?",
+			nextState:      askingActivityDuration,
+		},
+		askingActivityDuration: sentiment,
+		askingActivityValue:    done,
+	},
+	types.ActivityReading: {
+		askingActivityCount: successAndNextState{
+			successMessage: "How long did you read for?",
+			nextState:      askingActivityDuration,
+		},
+		askingActivityDuration: sentiment,
+		askingActivityValue:    done,
 	},
 }
 

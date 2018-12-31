@@ -13,6 +13,9 @@ const (
 	ActivityOverallDay
 	ActivityProgramming
 	ActivityLaundry
+	ActivityRunning
+	ActivityMeetings
+	ActivityReading
 )
 
 type Activity struct {
