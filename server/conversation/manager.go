@@ -129,6 +129,7 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 				return "Whoops, there was a problem saving your activity, try again shortly."
 			}
 		}
+		delete(m.currentMessages, fbID)
 		return "Have a nice day!"
 	}
 	if command == "quit" || command == "abort" {
