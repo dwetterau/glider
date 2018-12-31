@@ -19,7 +19,7 @@ type state struct {
 	currentState stateType
 
 	currentActivityType types.ActivityType
-	activitiesToSave    []types.Activity
+	activity            *types.Activity
 
 	// Initialized on start
 	userID       types.UserID
@@ -32,8 +32,16 @@ const (
 	unknownStateType stateType = iota
 	askingActivityType
 	askingActivityValue
+	askingActivityDuration
+	askingActivityCount
 	askingTimezone
 )
+
+var activityValues = map[stateType]struct{}{
+	askingActivityValue:    {},
+	askingActivityDuration: {},
+	askingActivityCount:    {},
+}
 
 // State machine:
 //
@@ -84,7 +92,7 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 	defer m.lock.Unlock()
 	curState, ok := m.currentMessages[fbID]
 	if !ok {
-		if command != "start" {
+		if command != "start" && command != "hello" && command != "hi" {
 			return "Sorry, your conversation might have timed out. Please start again."
 		}
 		// Load the user's information
@@ -105,34 +113,7 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 		return "Hello! What type of activity do you want to record?"
 	}
 	// We already have a conversation going on, check for a few commands
-	if command == "done" || command == "finished" {
-		if curState.currentState != askingActivityType {
-			return "Please finish recording your current activity first."
-		}
-		if len(curState.activitiesToSave) == 0 {
-			delete(m.currentMessages, fbID)
-			return "I don't have anything to record, but have a nice day!"
-		}
-
-		// TODO: Do this without holding the map lock...
-		// Save the messages!
-		// Note: This timezone value can always be changed later.
-		userID, _, err := m.database.AddOrGetUser(fbID, time.UTC)
-		if err != nil {
-			log.Println("Error adding user: ", err.Error())
-			return "Whoops, there was a problem saving your activity, try again shortly."
-		}
-		for _, activity := range curState.activitiesToSave {
-			_, err = m.database.AddOrUpdateActivity(userID, activity)
-			if err != nil {
-				log.Println("Error saving activity: ", err.Error())
-				return "Whoops, there was a problem saving your activity, try again shortly."
-			}
-		}
-		delete(m.currentMessages, fbID)
-		return "Have a nice day!"
-	}
-	if command == "quit" || command == "abort" {
+	if command == "quit" || command == "abort" || command == "done" || command == "finished" || command == "stop" {
 		delete(m.currentMessages, fbID)
 		return "Have a nice day!"
 	}
@@ -155,21 +136,63 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 		curState.currentActivityType = activityType
 		curState.currentState = askingActivityValue
 		return startMessage
-	} else if curState.currentState == askingActivityValue {
-		activity, errorMessage := handleResponse(curState.currentActivityType, command)
+	} else if _, ok := activityValues[curState.currentState]; ok {
+		activity, nextState, response := handleResponse(
+			curState.currentActivityType,
+			curState.currentState,
+			command,
+		)
 		if activity == nil {
-			return errorMessage
+			return response
 		}
-		now, utcDate := nowAndUTCDate(curState.userTimezone)
-		activity.Type = curState.currentActivityType
-		activity.UTCDate = utcDate
-		activity.ActualTime = now
-		activity.RawValue = message
-		curState.activitiesToSave = append(curState.activitiesToSave, *activity)
 
-		curState.currentState = askingActivityType
-		return "Great! If you're finished, feel free to say so, " +
-			"otherwise let me know what type of activity you want to record."
+		if curState.activity == nil {
+			// Initialize the activity
+			now, utcDate := nowAndUTCDate(curState.userTimezone)
+			activity.Type = curState.currentActivityType
+			activity.UTCDate = utcDate
+			activity.ActualTime = now
+			// TODO: Strip out newlines from this
+			activity.RawMessages = message
+			curState.activity = activity
+		} else {
+			// Append another message
+			// TODO: Strip out newlines from this
+			activity.RawMessages = strings.Join([]string{activity.RawMessages, message}, "\n")
+		}
+
+		// Copy over fields based off the current thing we asked the user about
+		if curState.currentState == askingActivityValue {
+			curState.activity.Value = activity.Value
+		} else if curState.currentState == askingActivityCount {
+			// TODO
+		} else if curState.currentState == askingActivityDuration {
+			// TODO
+		} else {
+			return "Sorry, the programmer messed this up. Please let them know."
+		}
+
+		// If this is the next state, we must be done!
+		if nextState == askingActivityType {
+			// Save the messages!
+			// Note: This timezone value can always be changed later.
+			userID, _, err := m.database.AddOrGetUser(fbID, time.UTC)
+			if err != nil {
+				log.Println("Error adding user: ", err.Error())
+				return "Whoops, there was a problem saving your activity, try again shortly."
+			}
+			_, err = m.database.AddOrUpdateActivity(userID, *curState.activity)
+			if err != nil {
+				log.Println("Error saving activity: ", err.Error())
+				return "Whoops, there was a problem saving your activity, try again shortly."
+			}
+			curState.activity = nil
+			return "I finished writing that down, what activity type would you like to record next?"
+		}
+
+		// Otherwise, go to the next state.
+		curState.currentState = nextState
+		return response
 	} else if curState.currentState == askingTimezone {
 		// Try to parse the timezone
 		tz, err := time.LoadLocation(message)
@@ -209,14 +232,23 @@ func determineActivityType(command string) (types.ActivityType, string) {
 }
 
 // Handlers here must fill in the value fields, everything else is handled above this layer.
-func handleResponse(activityType types.ActivityType, command string) (*types.Activity, string) {
+//
+// Returns: The new activity struct (or nil), the next state (might be the same one) a message (might be an error).
+func handleResponse(
+	activityType types.ActivityType,
+	currentState stateType,
+	command string,
+) (*types.Activity, stateType, string) {
 	if activityType == types.ActivityOverallDay {
-		return handleOverallDay(command)
+		return handleOverallDay(command, currentState)
 	}
-	return nil, "Sorry, the programmer messed this up. Please let them know."
+	return nil, unknownStateType, "Sorry, the programmer messed this up. Please let them know."
 }
 
-func handleOverallDay(command string) (*types.Activity, string) {
+func handleOverallDay(command string, currentState stateType) (*types.Activity, stateType, string) {
+	if currentState != askingActivityValue {
+		return nil, unknownStateType, "Sorry, the programmer messed this up. Please let them know."
+	}
 	val, ok := map[string]string{
 		"terrible":  "terrible",
 		"awful":     "terrible",
@@ -232,9 +264,9 @@ func handleOverallDay(command string) (*types.Activity, string) {
 		"fantastic": "great",
 	}[command]
 	if !ok {
-		return nil, "Sorry, I don't understand what that means, try saying something like \"ok\" or \"great\"!"
+		return nil, askingActivityType, "Sorry, I don't understand what that means, try saying something like \"ok\" or \"great\"!"
 	}
 	return &types.Activity{
 		Value: val,
-	}, ""
+	}, askingActivityType, ""
 }

@@ -14,10 +14,10 @@ const (
 )
 
 type Activity struct {
-	ID         ActivityID
-	Type       ActivityType
-	UTCDate    time.Time
-	ActualTime time.Time
-	Value      string
-	RawValue   string
+	ID          ActivityID
+	Type        ActivityType
+	UTCDate     time.Time
+	ActualTime  time.Time
+	Value       string
+	RawMessages string
 }

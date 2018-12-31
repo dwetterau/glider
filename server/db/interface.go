@@ -181,7 +181,7 @@ func (d *databaseImpl) AddOrUpdateActivity(userID types.UserID, activity types.A
 		res, err := q.Exec(
 			activity.ActualTime.Unix(),
 			activity.Value,
-			activity.RawValue,
+			activity.RawMessages,
 			existingID,
 		)
 		if err != nil {
@@ -211,7 +211,7 @@ func (d *databaseImpl) AddOrUpdateActivity(userID types.UserID, activity types.A
 		activity.UTCDate.Unix(),
 		activity.ActualTime.Unix(),
 		activity.Value,
-		activity.RawValue,
+		activity.RawMessages,
 	)
 	if err != nil {
 		return 0, err
@@ -247,7 +247,7 @@ func (d *databaseImpl) ActivityForUser(userID types.UserID) ([]types.Activity, e
 			&dateRaw,
 			&timeRaw,
 			&a.Value,
-			&a.RawValue,
+			&a.RawMessages,
 		)
 		if err != nil {
 			return nil, err

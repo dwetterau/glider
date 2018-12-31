@@ -107,9 +107,9 @@ func TestAddActivities(t *testing.T) {
 	utcTime := time.Unix(1239017850, 0)
 	realTime := time.Unix(1231234195, 0)
 	activities := []types.Activity{
-		{ID: 1, Type: types.ActivityOverallDay, UTCDate: utcTime, ActualTime: realTime, Value: "val1", RawValue: "v1"},
-		{ID: 2, Type: types.ActivityUnknown, UTCDate: utcTime, ActualTime: realTime, Value: "val2", RawValue: "v2"},
-		{ID: 3, Type: types.ActivityOverallDay, UTCDate: utcTime, ActualTime: realTime, Value: "val3", RawValue: "v3"},
+		{ID: 1, Type: types.ActivityOverallDay, UTCDate: utcTime, ActualTime: realTime, Value: "val1", RawMessages: "v1"},
+		{ID: 2, Type: types.ActivityUnknown, UTCDate: utcTime, ActualTime: realTime, Value: "val2", RawMessages: "v2"},
+		{ID: 3, Type: types.ActivityOverallDay, UTCDate: utcTime, ActualTime: realTime, Value: "val3", RawMessages: "v3"},
 	}
 
 	activityID1, err := d.AddOrUpdateActivity(userID1, activities[0])
@@ -146,9 +146,9 @@ func TestUpdateActivity(t *testing.T) {
 
 	// Note: the first and third match user,type,date
 	activities := []types.Activity{
-		{ID: 1, Type: types.ActivityOverallDay, UTCDate: utcTime, ActualTime: realTime, Value: "val1", RawValue: "v1"},
-		{ID: 2, Type: types.ActivityUnknown, UTCDate: utcTime, ActualTime: realTime.Add(time.Minute), Value: "val2", RawValue: "v2"},
-		{ID: 1, Type: types.ActivityOverallDay, UTCDate: utcTime, ActualTime: realTime.Add(time.Second), Value: "val3", RawValue: "v3"},
+		{ID: 1, Type: types.ActivityOverallDay, UTCDate: utcTime, ActualTime: realTime, Value: "val1", RawMessages: "v1"},
+		{ID: 2, Type: types.ActivityUnknown, UTCDate: utcTime, ActualTime: realTime.Add(time.Minute), Value: "val2", RawMessages: "v2"},
+		{ID: 1, Type: types.ActivityOverallDay, UTCDate: utcTime, ActualTime: realTime.Add(time.Second), Value: "val3", RawMessages: "v3"},
 	}
 
 	for _, activity := range activities {

@@ -29,8 +29,7 @@ func TestEndToEnd(t *testing.T) {
 	expectedOutputs := []string{
 		"Hello! What type of activity do you want to record?",
 		"How was your day?",
-		"Great! If you're finished, feel free to say so, " +
-			"otherwise let me know what type of activity you want to record.",
+		"I finished writing that down, what activity type would you like to record next?",
 		"Have a nice day!",
 	}
 	assert.Equal(t, expectedOutputs, outputs)
@@ -41,7 +40,7 @@ func TestEndToEnd(t *testing.T) {
 	assert.Len(t, activities, 1)
 	assert.Equal(t, activities[0].Type, types.ActivityOverallDay)
 	assert.Equal(t, activities[0].Value, "great")
-	assert.Equal(t, activities[0].RawValue, "AWESOME")
+	assert.Equal(t, activities[0].RawMessages, "AWESOME")
 }
 
 func TestSetTimezone(t *testing.T) {
@@ -64,7 +63,7 @@ func TestSetTimezone(t *testing.T) {
 		"Hello! What type of activity do you want to record?",
 		"Your current timezone is UTC. What would you like to change it to?",
 		"Thanks! Now what kind of activity would you like to record?",
-		"I don't have anything to record, but have a nice day!",
+		"Have a nice day!",
 	}
 	assert.Equal(t, expectedOutputs, outputs)
 
