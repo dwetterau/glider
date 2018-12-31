@@ -187,10 +187,8 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 				return "Whoops, there was a problem saving your activity, try again shortly."
 			}
 			curState.activity = nil
-			return "I finished writing that down, what activity type would you like to record next?"
+			response = "I finished writing that down, what activity type would you like to record next?"
 		}
-
-		// Otherwise, go to the next state.
 		curState.currentState = nextState
 		return response
 	} else if curState.currentState == askingTimezone {

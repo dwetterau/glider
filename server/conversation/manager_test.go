@@ -63,6 +63,41 @@ func runTest(t *testing.T, inputs []string, expectedOutputs []string, expectedAc
 	assert.Equal(t, expectedActivity, activities[0])
 }
 
+func TestMulti(t *testing.T) {
+	impl := &managerImpl{
+		database:        db.TestOnlyMockImpl(),
+		currentMessages: make(map[string]*state),
+	}
+
+	inputs := []string{
+		"Start",
+		"day",
+		"GREAT",
+		"yoga",
+		"good",
+		"finished",
+	}
+	outputs := make([]string, 0, len(inputs))
+	for _, input := range inputs {
+		outputs = append(outputs, impl.Handle("fb1", input))
+	}
+	expectedOutputs := []string{
+		"Hello! What type of activity do you want to record?",
+		"How was your day?",
+		"I finished writing that down, what activity type would you like to record next?",
+		"How was it?",
+		"I finished writing that down, what activity type would you like to record next?",
+		"Have a nice day!",
+	}
+	assert.Equal(t, expectedOutputs, outputs)
+
+	// Make sure both activities were recorded
+	userID, _, err := impl.database.AddOrGetUser("fb1", time.UTC)
+	require.NoError(t, err)
+	activities, err := impl.database.ActivityForUser(userID)
+	assert.Len(t, activities, 2)
+}
+
 func TestOverallDay(t *testing.T) {
 	inputs := []string{
 		"Start",
