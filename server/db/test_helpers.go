@@ -22,7 +22,7 @@ func TestOnlyMockImpl() Database {
 		activity: make(map[types.UserID][]types.Activity),
 	}
 }
-func (t *testImpl) AddUser(fbID string, tz *time.Location) (types.UserID, *time.Location, error) {
+func (t *testImpl) AddOrGetUser(fbID string, tz *time.Location) (types.UserID, *time.Location, error) {
 	if val, ok := t.users[fbID]; ok {
 		tz := t.idToTZ[val]
 		return val, tz, nil
@@ -38,9 +38,19 @@ func (t *testImpl) SetTimezone(userID types.UserID, tz *time.Location) error {
 	return nil
 }
 
-func (t *testImpl) AddActivity(userID types.UserID, activity types.Activity) (types.ActivityID, error) {
+func (t *testImpl) AddOrUpdateActivity(userID types.UserID, activity types.Activity) (types.ActivityID, error) {
 	if activity.ID == 0 {
 		activity.ID = types.ActivityID(rand.Int63())
+	} else {
+		// Find the existing activity
+		index := 0
+		for i, a := range t.activity[userID] {
+			if a.ID == activity.ID {
+				index = i
+				break
+			}
+		}
+		t.activity[userID][index] = activity
 	}
 	t.activity[userID] = append(t.activity[userID], activity)
 	return activity.ID, nil

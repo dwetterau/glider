@@ -10,9 +10,9 @@ import (
 )
 
 type Database interface {
-	AddUser(fbID string, timezone *time.Location) (types.UserID, *time.Location, error)
+	AddOrGetUser(fbID string, timezone *time.Location) (types.UserID, *time.Location, error)
 	SetTimezone(userID types.UserID, tz *time.Location) error
-	AddActivity(userID types.UserID, activity types.Activity) (types.ActivityID, error)
+	AddOrUpdateActivity(userID types.UserID, activity types.Activity) (types.ActivityID, error)
 	ActivityForUser(userID types.UserID) ([]types.Activity, error)
 }
 
@@ -27,6 +27,7 @@ func NewSQLite(sourcePath string) (Database, error) {
 		userTableIndexCreateShchema,
 		activityTableCreateSchema,
 		activityTableIndexCreateSchema,
+		activityTableTypeDayIndexCreateSchema,
 	} {
 		statement, err := database.Prepare(schema)
 		if err != nil {
@@ -68,13 +69,17 @@ const activityTableIndexCreateSchema = `
 CREATE INDEX IF NOT EXISTS owner_idx ON activity (user_id, date)
 `
 
+const activityTableTypeDayIndexCreateSchema = `
+CREATE UNIQUE INDEX IF NOT EXISTS owner_type_date_idx ON activity (user_id, type, date)
+`
+
 type databaseImpl struct {
 	db *sql.DB
 }
 
 var _ Database = &databaseImpl{}
 
-func (d *databaseImpl) AddUser(fbID string, timezone *time.Location) (types.UserID, *time.Location, error) {
+func (d *databaseImpl) AddOrGetUser(fbID string, timezone *time.Location) (types.UserID, *time.Location, error) {
 	tx, err := d.db.Begin()
 	if err != nil {
 		return 0, nil, err
@@ -116,6 +121,9 @@ func (d *databaseImpl) AddUser(fbID string, timezone *time.Location) (types.User
 	}
 
 	lastInsertID, err := res.LastInsertId()
+	if err != nil {
+		return 0, nil, err
+	}
 	err = tx.Commit()
 	if err != nil {
 		return 0, nil, err
@@ -142,8 +150,56 @@ func (d *databaseImpl) SetTimezone(userID types.UserID, timezone *time.Location)
 	return nil
 }
 
-func (d *databaseImpl) AddActivity(userID types.UserID, activity types.Activity) (types.ActivityID, error) {
-	q, err := d.db.Prepare("INSERT INTO activity " +
+func (d *databaseImpl) AddOrUpdateActivity(userID types.UserID, activity types.Activity) (types.ActivityID, error) {
+	tx, err := d.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	// Now read and see if the activity currently exists already
+	q, err := tx.Prepare("SELECT id FROM activity WHERE user_id = ? AND type = ? AND date = ?")
+	if err != nil {
+		return 0, err
+	}
+	rows, err := q.Query(userID, activity.Type, activity.UTCDate.Unix())
+	if err != nil {
+		return 0, err
+	}
+	existingID := types.ActivityID(-1)
+	for rows.Next() {
+		err = rows.Scan(&existingID)
+		if err != nil {
+			return 0, err
+		}
+	}
+	if existingID != -1 {
+		q, err = tx.Prepare("UPDATE activity SET " +
+			"time = ?, value = ?, raw_value = ? " +
+			"WHERE id = ?")
+		if err != nil {
+			return 0, err
+		}
+		res, err := q.Exec(
+			activity.ActualTime.Unix(),
+			activity.Value,
+			activity.RawValue,
+			existingID,
+		)
+		if err != nil {
+			return 0, err
+		}
+		if num, err := res.RowsAffected(); err != nil || num != 1 {
+			if err != nil {
+				return 0, err
+			}
+			return 0, errors.New("unable to update activity")
+		}
+		err = tx.Commit()
+		if err != nil {
+			return 0, err
+		}
+		return existingID, nil
+	}
+	q, err = tx.Prepare("INSERT INTO activity " +
 		"(user_id, type, date, time, value, raw_value) " +
 		"VALUES (?, ?, ?, ?, ?, ?)")
 	if err != nil {
@@ -160,7 +216,14 @@ func (d *databaseImpl) AddActivity(userID types.UserID, activity types.Activity)
 	if err != nil {
 		return 0, err
 	}
+	err = tx.Commit()
+	if err != nil {
+		return 0, err
+	}
 	lastInsertID, err := res.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
 	return types.ActivityID(lastInsertID), nil
 }
 

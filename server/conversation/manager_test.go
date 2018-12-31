@@ -35,7 +35,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 	assert.Equal(t, expectedOutputs, outputs)
 
-	userID, _, err := impl.database.AddUser("fb1", time.UTC)
+	userID, _, err := impl.database.AddOrGetUser("fb1", time.UTC)
 	require.NoError(t, err)
 	activities, err := impl.database.ActivityForUser(userID)
 	assert.Len(t, activities, 1)
@@ -68,7 +68,7 @@ func TestSetTimezone(t *testing.T) {
 	}
 	assert.Equal(t, expectedOutputs, outputs)
 
-	_, tz, err := impl.database.AddUser("fb1", time.UTC)
+	_, tz, err := impl.database.AddOrGetUser("fb1", time.UTC)
 	require.NoError(t, err)
 	assert.Equal(t, "America/Los_Angeles", tz.String())
 }

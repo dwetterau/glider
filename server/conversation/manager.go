@@ -35,6 +35,15 @@ const (
 	askingTimezone
 )
 
+// State machine:
+//
+//                +----------------------------+
+//                v                            |
+// start -> askingActivityType ------> askingActivityValue
+//             |     ^
+//             v     |
+//          askingTimezone
+
 type managerImpl struct {
 	database        db.Database
 	currentMessages map[string]*state
@@ -79,7 +88,7 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 			return "Sorry, your conversation might have timed out. Please start again."
 		}
 		// Load the user's information
-		userID, timezone, err := m.database.AddUser(fbID, time.UTC)
+		userID, timezone, err := m.database.AddOrGetUser(fbID, time.UTC)
 		if err != nil {
 			log.Println("Error loading user: ", err.Error())
 			return "Sorry, I can't handle new conversations at this time. Try again shortly."
@@ -108,13 +117,13 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 		// TODO: Do this without holding the map lock...
 		// Save the messages!
 		// Note: This timezone value can always be changed later.
-		userID, _, err := m.database.AddUser(fbID, time.UTC)
+		userID, _, err := m.database.AddOrGetUser(fbID, time.UTC)
 		if err != nil {
 			log.Println("Error adding user: ", err.Error())
 			return "Whoops, there was a problem saving your activity, try again shortly."
 		}
 		for _, activity := range curState.activitiesToSave {
-			_, err = m.database.AddActivity(userID, activity)
+			_, err = m.database.AddOrUpdateActivity(userID, activity)
 			if err != nil {
 				log.Println("Error saving activity: ", err.Error())
 				return "Whoops, there was a problem saving your activity, try again shortly."
