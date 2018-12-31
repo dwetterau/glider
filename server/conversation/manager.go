@@ -90,6 +90,10 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 			"Say \"finished\" when you're done. " +
 			"At any point feel free to \"quit\"."
 	}
+	if command == "activities" {
+		return "Available activities are the following: " +
+			"day, programming, laundry, running, meetings, reading, yoga, climbing"
+	}
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	curState, ok := m.currentMessages[fbID]

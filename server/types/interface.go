@@ -19,6 +19,7 @@ const (
 	ActivityReading
 	ActivityYoga
 	ActivityClimbing
+	// Note: When adding to this, please also add to the `activities` command.
 )
 
 type Activity struct {
