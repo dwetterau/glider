@@ -12,6 +12,7 @@ const (
 	ActivityUnknown ActivityType = iota
 	ActivityOverallDay
 	ActivityProgramming
+	ActivityLaundry
 )
 
 type Activity struct {

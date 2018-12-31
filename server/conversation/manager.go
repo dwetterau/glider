@@ -3,6 +3,7 @@ package conversation
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -82,6 +83,7 @@ func (m *managerImpl) start() {
 }
 
 func (m *managerImpl) Handle(fbID string, message string) string {
+	message = strings.Replace(message, "\n", " ", -1)
 	command := strings.ToLower(message)
 	if command == "help" {
 		return "Say \"start\" to begin. " +
@@ -152,12 +154,10 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 			activity.Type = curState.currentActivityType
 			activity.UTCDate = utcDate
 			activity.ActualTime = now
-			// TODO: Strip out newlines from this
 			activity.RawMessages = message
 			curState.activity = activity
 		} else {
 			// Append another message
-			// TODO: Strip out newlines from this
 			curState.activity.RawMessages += "\n" + message
 		}
 
@@ -231,6 +231,9 @@ func determineActivityType(command string) (types.ActivityType, string, stateTyp
 	if command == "programming" || command == "programmed" || command == "wrote code" || command == "coded" {
 		return types.ActivityProgramming, "How long did you program for?", askingActivityDuration
 	}
+	if command == "laundry" {
+		return types.ActivityLaundry, "How many loads of laundry did you do?", askingActivityCount
+	}
 	return types.ActivityUnknown, "", unknownStateType
 }
 
@@ -247,6 +250,9 @@ func handleResponse(
 	}
 	if activityType == types.ActivityProgramming {
 		return handleProgramming(command, currentState)
+	}
+	if activityType == types.ActivityLaundry {
+		return handleLaundry(command, currentState)
 	}
 	return nil, unknownStateType, "Sorry, the programmer messed this up. Please let them know."
 }
@@ -292,13 +298,31 @@ func handleProgramming(command string, currentState stateType) (*types.Activity,
 			return nil, askingActivityDuration, "Sorry, I can't understand that duration value."
 		}
 		return &types.Activity{Duration: d}, askingActivityValue, "Okay, and how did you feel about that?"
-	} else if currentState == askingActivityValue {
+	}
+	if currentState == askingActivityValue {
 		val, errorMessage := parseActivityValue(command)
 		if len(errorMessage) > 0 {
 			return nil, askingActivityValue, errorMessage
 		}
 		return &types.Activity{Value: val}, askingActivityType, ""
-	} else {
-		return nil, unknownStateType, "Sorry, the programmer messed this up. Please let them know."
 	}
+	return nil, unknownStateType, "Sorry, the programmer messed this up. Please let them know."
+}
+
+func handleLaundry(command string, currentState stateType) (*types.Activity, stateType, string) {
+	if currentState == askingActivityCount {
+		val, err := strconv.ParseInt(command, 10, 64)
+		if err != nil {
+			return nil, askingActivityDuration, "Sorry, I can't understand that number."
+		}
+		return &types.Activity{Count: val}, askingActivityValue, "Okay, and how did you feel about that?"
+	}
+	if currentState == askingActivityValue {
+		val, errorMessage := parseActivityValue(command)
+		if len(errorMessage) > 0 {
+			return nil, askingActivityValue, errorMessage
+		}
+		return &types.Activity{Value: val}, askingActivityType, ""
+	}
+	return nil, unknownStateType, "Sorry, the programmer messed this up. Please let them know."
 }

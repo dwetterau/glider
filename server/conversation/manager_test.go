@@ -105,3 +105,37 @@ func TestProgramming(t *testing.T) {
 	assert.Equal(t, "neutral", activities[0].Value)
 	assert.Equal(t, "10m\nmeh", activities[0].RawMessages)
 }
+
+func TestLaundry(t *testing.T) {
+	impl := &managerImpl{
+		database:        db.TestOnlyMockImpl(),
+		currentMessages: make(map[string]*state),
+	}
+
+	inputs := []string{
+		"Start",
+		"LAUNDRY",
+		"5",
+		"great",
+	}
+	outputs := make([]string, 0, len(inputs))
+	for _, input := range inputs {
+		outputs = append(outputs, impl.Handle("fb1", input))
+	}
+	expectedOutputs := []string{
+		"Hello! What type of activity do you want to record?",
+		"How many loads of laundry did you do?",
+		"Okay, and how did you feel about that?",
+		"I finished writing that down, what activity type would you like to record next?",
+	}
+	assert.Equal(t, expectedOutputs, outputs)
+
+	userID, _, err := impl.database.AddOrGetUser("fb1", time.UTC)
+	require.NoError(t, err)
+	activities, err := impl.database.ActivityForUser(userID)
+	assert.Len(t, activities, 1)
+	assert.Equal(t, types.ActivityLaundry, activities[0].Type)
+	assert.Equal(t, int64(5), activities[0].Count)
+	assert.Equal(t, "great", activities[0].Value)
+	assert.Equal(t, "5\ngreat", activities[0].RawMessages)
+}
