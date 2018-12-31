@@ -70,5 +70,5 @@ func TestSetTimezone(t *testing.T) {
 
 	_, tz, err := impl.database.AddUser("fb1", time.UTC)
 	require.NoError(t, err)
-	assert.Equal(t, "America/Los_Angeles", tz)
+	assert.Equal(t, "America/Los_Angeles", tz.String())
 }

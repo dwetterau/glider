@@ -10,7 +10,7 @@ import (
 )
 
 type Database interface {
-	AddUser(fbID string, timezone *time.Location) (types.UserID, string, error)
+	AddUser(fbID string, timezone *time.Location) (types.UserID, *time.Location, error)
 	SetTimezone(userID types.UserID, tz *time.Location) error
 	AddActivity(userID types.UserID, activity types.Activity) (types.ActivityID, error)
 	ActivityForUser(userID types.UserID) ([]types.Activity, error)
@@ -74,29 +74,33 @@ type databaseImpl struct {
 
 var _ Database = &databaseImpl{}
 
-func (d *databaseImpl) AddUser(fbID string, timezone *time.Location) (types.UserID, string, error) {
+func (d *databaseImpl) AddUser(fbID string, timezone *time.Location) (types.UserID, *time.Location, error) {
 	tx, err := d.db.Begin()
 	if err != nil {
-		return 0, "", err
+		return 0, nil, err
 	}
 	q, err := tx.Prepare("SELECT id, timezone FROM users WHERE fb_id = ?")
 	if err != nil {
-		return 0, "", err
+		return 0, nil, err
 	}
 	rows, err := q.Query(fbID)
 	if err != nil {
-		return 0, "", err
+		return 0, nil, err
 	}
 	for rows.Next() {
 		var userID types.UserID
-		var timezone string
-		err = rows.Scan(&userID, &timezone)
+		var timezoneRaw string
+		err = rows.Scan(&userID, &timezoneRaw)
 		if err != nil {
-			return 0, "", err
+			return 0, nil, err
 		}
 		err = tx.Rollback()
 		if err != nil {
-			return 0, "", err
+			return 0, nil, err
+		}
+		timezone, err := time.LoadLocation(timezoneRaw)
+		if err != nil {
+			return 0, nil, err
 		}
 		return userID, timezone, nil
 	}
@@ -104,19 +108,19 @@ func (d *databaseImpl) AddUser(fbID string, timezone *time.Location) (types.User
 	// Otherwise, we need to insert the user
 	q, err = tx.Prepare("INSERT INTO users (fb_id, timezone) VALUES (?, ?)")
 	if err != nil {
-		return 0, "", err
+		return 0, nil, err
 	}
 	res, err := q.Exec(fbID, timezone.String())
 	if err != nil {
-		return 0, "", err
+		return 0, nil, err
 	}
 
 	lastInsertID, err := res.LastInsertId()
 	err = tx.Commit()
 	if err != nil {
-		return 0, "", err
+		return 0, nil, err
 	}
-	return types.UserID(lastInsertID), timezone.String(), nil
+	return types.UserID(lastInsertID), timezone, nil
 }
 
 func (d *databaseImpl) SetTimezone(userID types.UserID, timezone *time.Location) error {
