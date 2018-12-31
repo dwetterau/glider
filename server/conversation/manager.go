@@ -136,53 +136,30 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 				curState.userTimezone,
 			)
 		}
-		if command != "overall" && command != "overall day" && command != "day" {
+
+		activityType, startMessage := determineActivityType(command)
+		if activityType == types.ActivityUnknown {
 			return "Sorry, I don't know what type of activity that is. " +
 				"Try saying something like \"overall\"."
 		}
-		curState.currentActivityType = types.ActivityOverallDay
+		curState.currentActivityType = activityType
 		curState.currentState = askingActivityValue
-		return "How was your day?"
+		return startMessage
 	} else if curState.currentState == askingActivityValue {
-		if curState.currentActivityType == types.ActivityOverallDay {
-			val, ok := map[string]string{
-				"terrible":  "terrible",
-				"awful":     "terrible",
-				"bad":       "bad",
-				"not good":  "bad",
-				"neutral":   "neutral",
-				"fine":      "neutral",
-				"ok":        "neutral",
-				"alright":   "neutral",
-				"good":      "good",
-				"great":     "great",
-				"awesome":   "great",
-				"fantastic": "great",
-			}[command]
-			if !ok {
-				return "Sorry, I don't understand what that means, try saying something like \"ok\" or \"great\"!"
-			}
-			// TODO: This needs to respect the timezone of the actual user!
-			now := time.Now()
-			year, month, day := now.Date()
-			utcDate, err := time.Parse("2006-01-02", fmt.Sprintf("%d-%d-%d", year, month, day))
-			if err != nil {
-				log.Println("Error parsing time: ", err.Error())
-				return "Whoops, there was a problem figuring out the time."
-			}
-
-			curState.activitiesToSave = append(curState.activitiesToSave, types.Activity{
-				Type:       curState.currentActivityType,
-				UTCDate:    utcDate,
-				ActualTime: now,
-				Value:      val,
-				RawValue:   message,
-			})
-			curState.currentState = askingActivityType
-			return "Great! If you're finished, feel free to say so, " +
-				"otherwise let me know what type of activity you want to record."
+		activity, errorMessage := handleResponse(curState.currentActivityType, command)
+		if activity == nil {
+			return errorMessage
 		}
-		return "Sorry, the programmer messed this up. Please let them know."
+		now, utcDate := nowAndUTCDate(curState.userTimezone)
+		activity.Type = curState.currentActivityType
+		activity.UTCDate = utcDate
+		activity.ActualTime = now
+		activity.RawValue = message
+		curState.activitiesToSave = append(curState.activitiesToSave, *activity)
+
+		curState.currentState = askingActivityType
+		return "Great! If you're finished, feel free to say so, " +
+			"otherwise let me know what type of activity you want to record."
 	} else if curState.currentState == askingTimezone {
 		// Try to parse the timezone
 		tz, err := time.LoadLocation(message)
@@ -202,4 +179,52 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 		return "Thanks! Now what kind of activity would you like to record?"
 	}
 	return "Sorry, I can't understand what you're saying. You can say \"help\" for some help getting started."
+}
+
+func nowAndUTCDate(userTimezone *time.Location) (time.Time, time.Time) {
+	now := time.Now().In(userTimezone)
+	year, month, day := now.Date()
+	utcDate, err := time.Parse("2006-01-02", fmt.Sprintf("%d-%d-%d", year, month, day))
+	if err != nil {
+		panic(err)
+	}
+	return now, utcDate
+}
+
+func determineActivityType(command string) (types.ActivityType, string) {
+	if command == "overall" || command == "overall day" || command == "day" {
+		return types.ActivityOverallDay, "How was your day?"
+	}
+	return types.ActivityUnknown, ""
+}
+
+// Handlers here must fill in the value fields, everything else is handled above this layer.
+func handleResponse(activityType types.ActivityType, command string) (*types.Activity, string) {
+	if activityType == types.ActivityOverallDay {
+		return handleOverallDay(command)
+	}
+	return nil, "Sorry, the programmer messed this up. Please let them know."
+}
+
+func handleOverallDay(command string) (*types.Activity, string) {
+	val, ok := map[string]string{
+		"terrible":  "terrible",
+		"awful":     "terrible",
+		"bad":       "bad",
+		"not good":  "bad",
+		"neutral":   "neutral",
+		"fine":      "neutral",
+		"ok":        "neutral",
+		"alright":   "neutral",
+		"good":      "good",
+		"great":     "great",
+		"awesome":   "great",
+		"fantastic": "great",
+	}[command]
+	if !ok {
+		return nil, "Sorry, I don't understand what that means, try saying something like \"ok\" or \"great\"!"
+	}
+	return &types.Activity{
+		Value: val,
+	}, ""
 }
