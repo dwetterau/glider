@@ -12,12 +12,14 @@ import (
 	"github.com/dwetterau/glider/server/conversation"
 	"github.com/dwetterau/glider/server/db"
 	"github.com/dwetterau/glider/server/messenger"
+	"github.com/wit-ai/wit-go"
 )
 
 const (
 	fbVerifyTokenEnvName     = "FB_VERIFY_TOKEN"
 	fbPageAccessTokenEnvName = "FB_PAGE_ACCESS_TOKEN"
 	dbLocationEnvName        = "DB_LOCATION"
+	witAITokenName           = "WIT_AI_TOKEN"
 )
 
 func main() {
@@ -27,7 +29,7 @@ func main() {
 	flag.Parse()
 
 	// Verify expected env variables
-	for _, name := range []string{fbVerifyTokenEnvName, fbPageAccessTokenEnvName, dbLocationEnvName} {
+	for _, name := range []string{fbVerifyTokenEnvName, fbPageAccessTokenEnvName, dbLocationEnvName, witAITokenName} {
 		if os.Getenv(name) == "" {
 			log.Fatal("Missing env var: ", name)
 		}
@@ -38,8 +40,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	witClient := witai.NewClient(os.Getenv(witAITokenName))
+
 	// Set up the conversation manager
-	manager := conversation.New(d)
+	manager := conversation.New(d, witClient)
 
 	http.HandleFunc("/", helloHandler)
 	http.HandleFunc("/webhook", webhookHandler(manager))

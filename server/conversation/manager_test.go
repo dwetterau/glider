@@ -9,6 +9,7 @@ import (
 	"github.com/dwetterau/glider/server/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	witai "github.com/wit-ai/wit-go"
 )
 
 func TestSetTimezone(t *testing.T) {
@@ -40,9 +41,26 @@ func TestSetTimezone(t *testing.T) {
 	assert.Equal(t, "America/Los_Angeles", tz.String())
 }
 
-func runTest(t *testing.T, inputs []string, expectedOutputs []string, expectedActivity types.Activity) {
+type mockWitClient struct {
+	resp witai.MessageResponse
+}
+
+var _ WitClient = &mockWitClient{}
+
+func (m *mockWitClient) Parse(req *witai.MessageRequest) (*witai.MessageResponse, error) {
+	return &m.resp, nil
+}
+
+func runTestWithWit(
+	t *testing.T,
+	witResp witai.MessageResponse,
+	inputs []string,
+	expectedOutputs []string,
+	expectedActivity types.Activity,
+) {
 	impl := &managerImpl{
 		database:        db.TestOnlyMockImpl(),
+		witClient:       &mockWitClient{resp: witResp},
 		currentMessages: make(map[string]*state),
 	}
 	outputs := make([]string, 0, len(inputs))
@@ -63,9 +81,19 @@ func runTest(t *testing.T, inputs []string, expectedOutputs []string, expectedAc
 	assert.Equal(t, expectedActivity, activities[0])
 }
 
+func runTest(
+	t *testing.T,
+	inputs []string,
+	expectedOutputs []string,
+	expectedActivity types.Activity,
+) {
+	runTestWithWit(t, witai.MessageResponse{}, inputs, expectedOutputs, expectedActivity)
+}
+
 func TestMulti(t *testing.T) {
 	impl := &managerImpl{
 		database:        db.TestOnlyMockImpl(),
+		witClient:       &mockWitClient{},
 		currentMessages: make(map[string]*state),
 	}
 
@@ -245,12 +273,20 @@ func TestClimbing(t *testing.T) {
 		"Okay, and how did you feel about that?",
 		"I finished writing that down, what activity type would you like to record next?",
 	}
-	runTest(t, inputs, expectedOutputs, types.Activity{
+	activity := types.Activity{
 		Type:        types.ActivityClimbing,
 		Duration:    2 * time.Hour,
 		Value:       "great",
 		RawMessages: strings.Join(inputs[2:], "\n"),
-	})
+	}
+	runTest(t, inputs, expectedOutputs, activity)
+
+	// Now do it fast this time.
+	witResponse := loadTestData(t)[7].resp
+	inputs = []string{inputs[0], inputs[1], inputs[3]}
+	expectedOutputs = []string{expectedOutputs[0], expectedOutputs[2], expectedOutputs[3]}
+	activity.RawMessages = "climbing\ngreat"
+	runTestWithWit(t, witResponse, inputs, expectedOutputs, activity)
 }
 
 func TestYoga(t *testing.T) {

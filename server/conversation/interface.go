@@ -10,9 +10,11 @@ type Manager interface {
 
 func New(
 	database db.Database,
+	client WitClient,
 ) Manager {
 	m := &managerImpl{
 		database:        database,
+		witClient:       client,
 		currentMessages: make(map[string]*state, 10),
 	}
 	m.start()

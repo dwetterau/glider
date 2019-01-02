@@ -18,6 +18,7 @@ type state struct {
 	startTime    time.Time
 	lastMessage  time.Time
 	currentState stateType
+	statesToSkip map[stateType]struct{}
 
 	currentActivityType types.ActivityType
 	activity            *types.Activity
@@ -55,6 +56,7 @@ var activityValues = map[stateType]struct{}{
 
 type managerImpl struct {
 	database        db.Database
+	witClient       WitClient
 	currentMessages map[string]*state
 	lock            sync.RWMutex
 }
@@ -133,8 +135,38 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 				curState.userTimezone,
 			)
 		}
+		// See if we can parse it the new fancy way.
+		parsedWitMessage, errorMessage := parseMessage(m.witClient, message)
+		if len(errorMessage) > 0 {
+			return errorMessage
+		}
 
-		activityType, startMessage, startState := determineActivityType(command)
+		// Set up all the state properly to parse out the rest of the fields
+		if parsedWitMessage.newActivity != nil {
+			// Initialize the activity
+			now, utcDate := nowAndUTCDate(curState.userTimezone)
+			parsedWitMessage.newActivity.UTCDate = utcDate
+			parsedWitMessage.newActivity.ActualTime = now
+			parsedWitMessage.newActivity.RawMessages = message
+
+			curState.activity = parsedWitMessage.newActivity
+			curState.statesToSkip = parsedWitMessage.statesToSkip
+			curState.currentActivityType = curState.activity.Type
+
+			var startMessage string
+			curState.currentState, startMessage = startForType(curState.activity.Type)
+			curState.currentState, startMessage = fastForwardThroughSkippedStates(
+				curState.statesToSkip,
+				curState.currentActivityType,
+				curState.currentState,
+				startMessage,
+			)
+			return startMessage
+		}
+
+		// Otherwise, fall back to the simple parsing.
+		activityType := determineActivityType(command)
+		startState, startMessage := startForType(activityType)
 		if activityType == types.ActivityUnknown {
 			return "Sorry, I don't know what type of activity that is. " +
 				"Try saying something like \"overall\"."
@@ -175,6 +207,14 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 		} else {
 			return "Sorry, the programmer messed this up. Please let them know."
 		}
+
+		// Make sure we skip over any already-answered questions.
+		nextState, response = fastForwardThroughSkippedStates(
+			curState.statesToSkip,
+			curState.currentActivityType,
+			nextState,
+			response,
+		)
 
 		// If this is the next state, we must be done!
 		if nextState == askingActivityType {
@@ -219,39 +259,79 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 func nowAndUTCDate(userTimezone *time.Location) (time.Time, time.Time) {
 	now := time.Now().In(userTimezone)
 	year, month, day := now.Date()
-	utcDate, err := time.Parse("2006-01-02", fmt.Sprintf("%d-%d-%d", year, month, day))
+	utcDate, err := time.Parse("2006-01-02", fmt.Sprintf("%04d-%02d-%02d", year, month, day))
 	if err != nil {
 		panic(err)
 	}
 	return now, utcDate
 }
 
-func determineActivityType(command string) (types.ActivityType, string, stateType) {
+func determineActivityType(command string) types.ActivityType {
 	if command == "overall" || command == "overall day" || command == "day" {
-		return types.ActivityOverallDay, "How was your day?", askingActivityValue
+		return types.ActivityOverallDay
 	}
 	if command == "programming" || command == "programmed" || command == "wrote code" || command == "coded" {
-		return types.ActivityProgramming, "How long did you program for?", askingActivityDuration
+		return types.ActivityProgramming
 	}
 	if command == "laundry" {
-		return types.ActivityLaundry, "How many loads of laundry did you do?", askingActivityCount
+		return types.ActivityLaundry
 	}
 	if command == "ran" || command == "went for a run" || command == "running" || command == "went running" {
-		return types.ActivityRunning, "How far did you run in miles?", askingActivityCount
+		return types.ActivityRunning
 	}
 	if command == "met" || command == "meeting" || command == "meetings" {
-		return types.ActivityMeetings, "How many meetings did you go to?", askingActivityCount
+		return types.ActivityMeetings
 	}
 	if command == "reading" || command == "read" {
-		return types.ActivityReading, "How many pages did you read?", askingActivityCount
+		return types.ActivityReading
 	}
 	if command == "yoga" {
-		return types.ActivityYoga, "How was it?", askingActivityValue
+		return types.ActivityYoga
 	}
 	if command == "climbing" {
-		return types.ActivityClimbing, "How long did you climb for?", askingActivityDuration
+		return types.ActivityClimbing
 	}
-	return types.ActivityUnknown, "", unknownStateType
+	return types.ActivityUnknown
+}
+
+var initialStates = map[types.ActivityType]successAndNextState{
+	types.ActivityOverallDay: {
+		successMessage: "How was your day?",
+		nextState:      askingActivityValue,
+	},
+	types.ActivityProgramming: {
+		successMessage: "How long did you program for?",
+		nextState:      askingActivityDuration,
+	},
+	types.ActivityLaundry: {
+		successMessage: "How many loads of laundry did you do?",
+		nextState:      askingActivityCount,
+	},
+	types.ActivityRunning: {
+		successMessage: "How far did you run in miles?",
+		nextState:      askingActivityCount,
+	},
+	types.ActivityMeetings: {
+		successMessage: "How many meetings did you go to?",
+		nextState:      askingActivityCount,
+	},
+	types.ActivityReading: {
+		successMessage: "How many pages did you read?",
+		nextState:      askingActivityCount,
+	},
+	types.ActivityYoga: {
+		successMessage: "How was it?",
+		nextState:      askingActivityValue,
+	},
+	types.ActivityClimbing: {
+		successMessage: "How long did you climb for?",
+		nextState:      askingActivityDuration,
+	},
+}
+
+func startForType(activityType types.ActivityType) (stateType, string) {
+	val := initialStates[activityType]
+	return val.nextState, val.successMessage
 }
 
 type successAndNextState struct {
@@ -306,12 +386,12 @@ var handlerMap = map[types.ActivityType]map[stateType]successAndNextState{
 		askingActivityDuration: sentiment,
 		askingActivityValue:    done,
 	},
+	types.ActivityYoga: {
+		askingActivityValue: done,
+	},
 	types.ActivityClimbing: {
 		askingActivityDuration: sentiment,
 		askingActivityValue:    done,
-	},
-	types.ActivityYoga: {
-		askingActivityValue: done,
 	},
 }
 
@@ -349,6 +429,29 @@ func handleResponse(
 		return &types.Activity{Value: val}, next.nextState, next.successMessage
 	}
 	return nil, unknownStateType, "Sorry, the programmer messed this up. Please let them know."
+}
+
+func fastForwardThroughSkippedStates(
+	statesToSkip map[stateType]struct{},
+	activityType types.ActivityType,
+	curState stateType,
+	curResponse string,
+) (stateType, string) {
+	if len(statesToSkip) == 0 {
+		return curState, curResponse
+	}
+	for {
+		if _, ok := statesToSkip[curState]; !ok {
+			return curState, curResponse
+		}
+		// Otherwise, this is hard, we need to keep running through the proper flow.
+		next, ok := handlerMap[activityType][curState]
+		if !ok {
+			return unknownStateType, "Sorry, the programmer messed this up. Please let them know."
+		}
+		curState = next.nextState
+		curResponse = next.successMessage
+	}
 }
 
 // Returns the canonical value, or an error message
