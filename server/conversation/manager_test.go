@@ -50,9 +50,10 @@ func TestSummary(t *testing.T) {
 	require.NoError(t, err)
 
 	_, utcDate := nowAndUTCDate(time.UTC)
+	sameTime := utcDate.Local()
 	activities := []types.Activity{
 		{Type: types.ActivityClimbing, Duration: time.Hour, Value: "good", UTCDate: utcDate},
-		{Type: types.ActivityOverallDay, Value: "great", UTCDate: utcDate},
+		{Type: types.ActivityOverallDay, Value: "great", UTCDate: sameTime},
 		// This would should be excluded
 		{Type: types.ActivityYoga, Duration: time.Hour, Value: "great", UTCDate: utcDate.Add(time.Second)},
 	}
@@ -70,9 +71,9 @@ func TestSummary(t *testing.T) {
 	}
 	expectedOutputs := []string{
 		"Hello! What type of activity do you want to record?",
-		"Today you've recorded that:\n" +
-			"- Your day was great.\n" +
-			"- You climbed for 1h and felt good about it.",
+		"Today you've recorded that:\n\n" +
+			"-  Your day was great.\n" +
+			"-  You climbed for 1h and felt good about it.",
 	}
 	assert.Equal(t, expectedOutputs, outputs)
 }

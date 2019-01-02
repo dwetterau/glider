@@ -150,16 +150,14 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 			})
 			summaries := make([]string, 0, len(activities))
 			_, utcDate := nowAndUTCDate(curState.userTimezone)
-			fmt.Println("today is:", utcDate)
 			for _, activity := range activities {
 				// Filter out ones not today.
-				fmt.Println(activity.UTCDate)
-				if activity.UTCDate != utcDate {
+				if activity.UTCDate.Unix() != utcDate.Unix() {
 					continue
 				}
-				summaries = append(summaries, "- "+summarizeActivity(activity))
+				summaries = append(summaries, "-  "+summarizeActivity(activity))
 			}
-			return "Today you've recorded that:\n" + strings.Join(summaries, "\n")
+			return "Today you've recorded that:\n\n" + strings.Join(summaries, "\n")
 		}
 
 		// See if we can parse it the new fancy way.
