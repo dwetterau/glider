@@ -32,67 +32,54 @@ func parseMessage(client WitClient, message string) (parsedWitMessage, string) {
 		// This will be interpretted as "can't figure out the type of activity"
 		return parsedWitMessage{}, ""
 	}
-	return f(*response)
+	return f(*response), ""
 }
 
-func determineWitParser(response witai.MessageResponse) func(witai.MessageResponse) (parsedWitMessage, string) {
+func determineWitParser(response witai.MessageResponse) func(witai.MessageResponse) parsedWitMessage {
 	for entityName := range response.Entities {
 		if entityName == "running" {
-			return runningWitParser
+			return genericParser(types.ActivityRunning, map[string]struct{}{"duration": {}, "distance": {}})
 		}
 		if entityName == "climbing" {
-			return climbingWitParser
+			return genericParser(types.ActivityClimbing, map[string]struct{}{"duration": {}})
+		}
+		if entityName == "programming" {
+			return genericParser(types.ActivityProgramming, map[string]struct{}{"duration": {}})
 		}
 	}
 	// TODO: Add more parsers
 	return nil
 }
 
-func runningWitParser(response witai.MessageResponse) (parsedWitMessage, string) {
-	parsedMessage := parsedWitMessage{
-		newActivity: &types.Activity{
-			Type: types.ActivityRunning,
-		},
-		statesToSkip: make(map[stateType]struct{}),
-	}
-	// See if there's a duration too
-	for name, entity := range response.Entities {
-		if name == "duration" {
-			duration := parseDuration(entity)
-			if duration != nil {
-				parsedMessage.statesToSkip[askingActivityDuration] = struct{}{}
-				parsedMessage.newActivity.Duration = *duration
+func genericParser(
+	activityType types.ActivityType,
+	namesToParse map[string]struct{},
+) func(witai.MessageResponse) parsedWitMessage {
+	return func(response witai.MessageResponse) parsedWitMessage {
+		parsedMessage := parsedWitMessage{
+			newActivity: &types.Activity{
+				Type: activityType,
+			},
+			statesToSkip: make(map[stateType]struct{}),
+		}
+		for name, entity := range response.Entities {
+			if _, ok := namesToParse["duration"]; ok && name == "duration" {
+				duration := parseDuration(entity)
+				if duration != nil {
+					parsedMessage.statesToSkip[askingActivityDuration] = struct{}{}
+					parsedMessage.newActivity.Duration = *duration
+				}
+			}
+			if _, ok := namesToParse["distance"]; ok && name == "distance" {
+				distance := parseDistance(entity)
+				if distance != nil {
+					parsedMessage.statesToSkip[askingActivityCount] = struct{}{}
+					parsedMessage.newActivity.Count = *distance
+				}
 			}
 		}
-		if name == "distance" {
-			distance := parseDistance(entity)
-			if distance != nil {
-				parsedMessage.statesToSkip[askingActivityCount] = struct{}{}
-				parsedMessage.newActivity.Count = *distance
-			}
-		}
+		return parsedMessage
 	}
-	return parsedMessage, ""
-}
-
-func climbingWitParser(response witai.MessageResponse) (parsedWitMessage, string) {
-	parsedMessage := parsedWitMessage{
-		newActivity: &types.Activity{
-			Type: types.ActivityClimbing,
-		},
-		statesToSkip: make(map[stateType]struct{}),
-	}
-	// See if there's a duration too
-	for name, entity := range response.Entities {
-		if name == "duration" {
-			duration := parseDuration(entity)
-			if duration != nil {
-				parsedMessage.statesToSkip[askingActivityDuration] = struct{}{}
-				parsedMessage.newActivity.Duration = *duration
-			}
-		}
-	}
-	return parsedMessage, ""
 }
 
 func parseDistance(entity interface{}) *int64 {

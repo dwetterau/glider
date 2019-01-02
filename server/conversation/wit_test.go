@@ -37,23 +37,25 @@ func loadTestData(t *testing.T) []messageAndResponse {
 	return data
 }
 
-func TestParseClimbing(t *testing.T) {
-	climbingData := loadTestData(t)[7].resp
-	parser := determineWitParser(climbingData)
-	parsed, errorMessage := parser(climbingData)
-	assert.Equal(t, errorMessage, "")
-	assert.Equal(t, parsed.statesToSkip, map[stateType]struct{}{askingActivityDuration: {}})
+func parseData(t *testing.T, index int) parsedWitMessage {
+	data := loadTestData(t)[index].resp
+	parser := determineWitParser(data)
+	return parser(data)
+}
+
+func TestParseProgramming(t *testing.T) {
+	parsed := parseData(t, 15)
+	assert.Equal(t, parsed.statesToSkip, map[stateType]struct{}{
+		askingActivityDuration: {},
+	})
 	assert.Equal(t, parsed.newActivity, &types.Activity{
-		Type:     types.ActivityClimbing,
-		Duration: 2 * time.Hour,
+		Type:     types.ActivityProgramming,
+		Duration: 10 * time.Hour,
 	})
 }
 
 func TestParseRunning(t *testing.T) {
-	data := loadTestData(t)[8].resp
-	parser := determineWitParser(data)
-	parsed, errorMessage := parser(data)
-	assert.Equal(t, errorMessage, "")
+	parsed := parseData(t, 8)
 	assert.Equal(t, parsed.statesToSkip, map[stateType]struct{}{
 		askingActivityCount:    {},
 		askingActivityDuration: {},
@@ -62,5 +64,14 @@ func TestParseRunning(t *testing.T) {
 		Type:     types.ActivityRunning,
 		Duration: 30 * time.Minute,
 		Count:    5,
+	})
+}
+
+func TestParseClimbing(t *testing.T) {
+	parsed := parseData(t, 7)
+	assert.Equal(t, parsed.statesToSkip, map[stateType]struct{}{askingActivityDuration: {}})
+	assert.Equal(t, parsed.newActivity, &types.Activity{
+		Type:     types.ActivityClimbing,
+		Duration: 2 * time.Hour,
 	})
 }

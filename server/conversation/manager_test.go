@@ -189,7 +189,7 @@ func TestProgramming(t *testing.T) {
 	inputs := []string{
 		"Start",
 		"wrote CODE",
-		"10m",
+		"10h",
 		"meh",
 	}
 	expectedOutputs := []string{
@@ -198,12 +198,20 @@ func TestProgramming(t *testing.T) {
 		"Okay, and how did you feel about that?",
 		"I finished writing that down, what activity type would you like to record next?",
 	}
-	runTest(t, inputs, expectedOutputs, types.Activity{
+	activity := types.Activity{
 		Type:        types.ActivityProgramming,
-		Duration:    10 * time.Minute,
+		Duration:    10 * time.Hour,
 		Value:       "neutral",
 		RawMessages: strings.Join(inputs[2:], "\n"),
-	})
+	}
+	runTest(t, inputs, expectedOutputs, activity)
+
+	// Now do it fast this time.
+	witResponse := loadTestData(t)[15].resp
+	inputs = []string{inputs[0], inputs[1], inputs[3]}
+	expectedOutputs = []string{expectedOutputs[0], expectedOutputs[2], expectedOutputs[3]}
+	activity.RawMessages = "wrote CODE\nmeh"
+	runTestWithWit(t, witResponse, inputs, expectedOutputs, activity)
 }
 
 func TestLaundry(t *testing.T) {
