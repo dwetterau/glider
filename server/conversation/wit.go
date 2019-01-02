@@ -37,12 +37,42 @@ func parseMessage(client WitClient, message string) (parsedWitMessage, string) {
 
 func determineWitParser(response witai.MessageResponse) func(witai.MessageResponse) (parsedWitMessage, string) {
 	for entityName := range response.Entities {
+		if entityName == "running" {
+			return runningWitParser
+		}
 		if entityName == "climbing" {
 			return climbingWitParser
 		}
 	}
 	// TODO: Add more parsers
 	return nil
+}
+
+func runningWitParser(response witai.MessageResponse) (parsedWitMessage, string) {
+	parsedMessage := parsedWitMessage{
+		newActivity: &types.Activity{
+			Type: types.ActivityRunning,
+		},
+		statesToSkip: make(map[stateType]struct{}),
+	}
+	// See if there's a duration too
+	for name, entity := range response.Entities {
+		if name == "duration" {
+			duration := parseDuration(entity)
+			if duration != nil {
+				parsedMessage.statesToSkip[askingActivityDuration] = struct{}{}
+				parsedMessage.newActivity.Duration = *duration
+			}
+		}
+		if name == "distance" {
+			distance := parseDistance(entity)
+			if distance != nil {
+				parsedMessage.statesToSkip[askingActivityCount] = struct{}{}
+				parsedMessage.newActivity.Count = *distance
+			}
+		}
+	}
+	return parsedMessage, ""
 }
 
 func climbingWitParser(response witai.MessageResponse) (parsedWitMessage, string) {
@@ -63,6 +93,32 @@ func climbingWitParser(response witai.MessageResponse) (parsedWitMessage, string
 		}
 	}
 	return parsedMessage, ""
+}
+
+func parseDistance(entity interface{}) *int64 {
+	entityList, ok := entity.([]interface{})
+	if !ok {
+		return nil
+	}
+	if len(entityList) != 1 {
+		return nil
+	}
+	entity = entityList[0]
+	valueMap, ok := entity.(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	// TODO: This should look at the units.
+	valInterface, ok := valueMap["value"]
+	if !ok {
+		return nil
+	}
+	val, ok := valInterface.(float64)
+	if !ok {
+		return nil
+	}
+	local := int64(math.Round(val))
+	return &local
 }
 
 func parseDuration(entity interface{}) *time.Duration {

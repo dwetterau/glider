@@ -192,8 +192,8 @@ func TestRunning(t *testing.T) {
 	inputs := []string{
 		"Start",
 		"running",
-		"4",
-		"28m",
+		"5",
+		"30m",
 		"great",
 	}
 	expectedOutputs := []string{
@@ -203,13 +203,21 @@ func TestRunning(t *testing.T) {
 		"Okay, and how did you feel about that?",
 		"I finished writing that down, what activity type would you like to record next?",
 	}
-	runTest(t, inputs, expectedOutputs, types.Activity{
+	activity := types.Activity{
 		Type:        types.ActivityRunning,
-		Count:       4,
-		Duration:    28 * time.Minute,
+		Count:       5,
+		Duration:    30 * time.Minute,
 		Value:       "great",
 		RawMessages: strings.Join(inputs[2:], "\n"),
-	})
+	}
+	runTest(t, inputs, expectedOutputs, activity)
+
+	// Now do it fast this time.
+	witResponse := loadTestData(t)[8].resp
+	inputs = []string{inputs[0], inputs[1], inputs[4]}
+	expectedOutputs = []string{expectedOutputs[0], expectedOutputs[3], expectedOutputs[4]}
+	activity.RawMessages = "running\ngreat"
+	runTestWithWit(t, witResponse, inputs, expectedOutputs, activity)
 }
 
 func TestMeetings(t *testing.T) {
