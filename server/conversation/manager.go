@@ -3,6 +3,7 @@ package conversation
 import (
 	"fmt"
 	"log"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -135,6 +136,24 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 				curState.userTimezone,
 			)
 		}
+		if command == "summary" {
+			activities, err := m.database.ActivityForUser(curState.userID)
+			if err != nil {
+				return "There was an error fetching your summary. Try again shortly."
+			}
+			if len(activities) == 0 {
+				return "You haven't recorded any activities yet today."
+			}
+			sort.Slice(activities, func(i, j int) bool {
+				return activities[i].Type < activities[j].Type
+			})
+			summaries := make([]string, len(activities))
+			for i, activity := range activities {
+				summaries[i] = "- " + summarizeActivity(activity)
+			}
+			return "Today you've recorded that:\n" + strings.Join(summaries, "\n")
+		}
+
 		// See if we can parse it the new fancy way.
 		parsedWitMessage, errorMessage := parseMessage(m.witClient, message)
 		if len(errorMessage) > 0 {
@@ -320,8 +339,8 @@ var initialStates = map[types.ActivityType]successAndNextState{
 		nextState:      askingActivityCount,
 	},
 	types.ActivityYoga: {
-		successMessage: "How was it?",
-		nextState:      askingActivityValue,
+		successMessage: "How long did you do yoga for?",
+		nextState:      askingActivityDuration,
 	},
 	types.ActivityClimbing: {
 		successMessage: "How long did you climb for?",
@@ -387,7 +406,8 @@ var handlerMap = map[types.ActivityType]map[stateType]successAndNextState{
 		askingActivityValue:    done,
 	},
 	types.ActivityYoga: {
-		askingActivityValue: done,
+		askingActivityDuration: sentiment,
+		askingActivityValue:    done,
 	},
 	types.ActivityClimbing: {
 		askingActivityDuration: sentiment,
@@ -475,4 +495,41 @@ func parseActivityValue(command string) (string, string) {
 		return "", "Sorry, I don't understand what that means, try saying something like \"ok\" or \"great\"!"
 	}
 	return val, ""
+}
+
+func sentimentEnding(value string) string {
+	return fmt.Sprintf(" and felt %s about it.", value)
+}
+
+func shortDuration(duration time.Duration) string {
+	s := duration.String()
+	if strings.HasSuffix(s, "m0s") {
+		s = s[:len(s)-2]
+	}
+	if strings.HasSuffix(s, "h0m") {
+		s = s[:len(s)-2]
+	}
+	return s
+}
+
+func summarizeActivity(activity types.Activity) string {
+	switch activity.Type {
+	case types.ActivityOverallDay:
+		return fmt.Sprintf("Your day was %s.", activity.Value)
+	case types.ActivityProgramming:
+		return fmt.Sprintf("You programmed for %s", shortDuration(activity.Duration)) + sentimentEnding(activity.Value)
+	case types.ActivityLaundry:
+		return fmt.Sprintf("You did %d loads of laundry", activity.Count) + sentimentEnding(activity.Value)
+	case types.ActivityRunning:
+		return fmt.Sprintf("You ran %d miles in %s", activity.Count, shortDuration(activity.Duration)) + sentimentEnding(activity.Value)
+	case types.ActivityMeetings:
+		return fmt.Sprintf("You spent %s in %d meetings", shortDuration(activity.Duration), activity.Count) + sentimentEnding(activity.Value)
+	case types.ActivityReading:
+		return fmt.Sprintf("You read %d pages in %s", activity.Count, shortDuration(activity.Duration)) + sentimentEnding(activity.Value)
+	case types.ActivityYoga:
+		return fmt.Sprintf("You did yoga for %s", shortDuration(activity.Duration)) + sentimentEnding(activity.Value)
+	case types.ActivityClimbing:
+		return fmt.Sprintf("You climbed for %s", shortDuration(activity.Duration)) + sentimentEnding(activity.Value)
+	}
+	return "Unknown activity."
 }

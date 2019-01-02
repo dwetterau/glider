@@ -41,6 +41,39 @@ func TestSetTimezone(t *testing.T) {
 	assert.Equal(t, "America/Los_Angeles", tz.String())
 }
 
+func TestSummary(t *testing.T) {
+	impl := &managerImpl{
+		database:        db.TestOnlyMockImpl(),
+		currentMessages: make(map[string]*state),
+	}
+	userID, _, err := impl.database.AddOrGetUser("fb1", time.UTC)
+	require.NoError(t, err)
+
+	activities := []types.Activity{
+		{Type: types.ActivityClimbing, Duration: time.Hour, Value: "good"},
+		{Type: types.ActivityOverallDay, Value: "great"},
+	}
+	for _, activity := range activities {
+		_, err = impl.database.AddOrUpdateActivity(userID, activity)
+		require.NoError(t, err)
+	}
+	inputs := []string{
+		"Start",
+		"summary",
+	}
+	outputs := make([]string, 0, len(inputs))
+	for _, input := range inputs {
+		outputs = append(outputs, impl.Handle("fb1", input))
+	}
+	expectedOutputs := []string{
+		"Hello! What type of activity do you want to record?",
+		"Today you've recorded that:\n" +
+			"- Your day was great.\n" +
+			"- You climbed for 1h and felt good about it.",
+	}
+	assert.Equal(t, expectedOutputs, outputs)
+}
+
 type mockWitClient struct {
 	resp witai.MessageResponse
 }
@@ -102,6 +135,7 @@ func TestMulti(t *testing.T) {
 		"day",
 		"GREAT",
 		"yoga",
+		"2h",
 		"good",
 		"finished",
 	}
@@ -113,7 +147,8 @@ func TestMulti(t *testing.T) {
 		"Hello! What type of activity do you want to record?",
 		"How was your day?",
 		"I finished writing that down, what activity type would you like to record next?",
-		"How was it?",
+		"How long did you do yoga for?",
+		"Okay, and how did you feel about that?",
 		"I finished writing that down, what activity type would you like to record next?",
 		"Have a nice day!",
 	}
@@ -301,15 +336,18 @@ func TestYoga(t *testing.T) {
 	inputs := []string{
 		"Start",
 		"yoga",
+		"2h",
 		"great",
 	}
 	expectedOutputs := []string{
 		"Hello! What type of activity do you want to record?",
-		"How was it?",
+		"How long did you do yoga for?",
+		"Okay, and how did you feel about that?",
 		"I finished writing that down, what activity type would you like to record next?",
 	}
 	runTest(t, inputs, expectedOutputs, types.Activity{
 		Type:        types.ActivityYoga,
+		Duration:    2 * time.Hour,
 		Value:       "great",
 		RawMessages: strings.Join(inputs[2:], "\n"),
 	})
