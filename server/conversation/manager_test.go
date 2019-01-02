@@ -49,9 +49,12 @@ func TestSummary(t *testing.T) {
 	userID, _, err := impl.database.AddOrGetUser("fb1", time.UTC)
 	require.NoError(t, err)
 
+	_, utcDate := nowAndUTCDate(time.UTC)
 	activities := []types.Activity{
-		{Type: types.ActivityClimbing, Duration: time.Hour, Value: "good"},
-		{Type: types.ActivityOverallDay, Value: "great"},
+		{Type: types.ActivityClimbing, Duration: time.Hour, Value: "good", UTCDate: utcDate},
+		{Type: types.ActivityOverallDay, Value: "great", UTCDate: utcDate},
+		// This would should be excluded
+		{Type: types.ActivityYoga, Duration: time.Hour, Value: "great", UTCDate: utcDate.Add(time.Second)},
 	}
 	for _, activity := range activities {
 		_, err = impl.database.AddOrUpdateActivity(userID, activity)

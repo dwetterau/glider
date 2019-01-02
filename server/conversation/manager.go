@@ -137,6 +137,7 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 			)
 		}
 		if command == "summary" {
+			// TODO: Add an API for activity on a given day, then switch this to it.
 			activities, err := m.database.ActivityForUser(curState.userID)
 			if err != nil {
 				return "There was an error fetching your summary. Try again shortly."
@@ -147,9 +148,16 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 			sort.Slice(activities, func(i, j int) bool {
 				return activities[i].Type < activities[j].Type
 			})
-			summaries := make([]string, len(activities))
-			for i, activity := range activities {
-				summaries[i] = "- " + summarizeActivity(activity)
+			summaries := make([]string, 0, len(activities))
+			_, utcDate := nowAndUTCDate(curState.userTimezone)
+			fmt.Println("today is:", utcDate)
+			for _, activity := range activities {
+				// Filter out ones not today.
+				fmt.Println(activity.UTCDate)
+				if activity.UTCDate != utcDate {
+					continue
+				}
+				summaries = append(summaries, "- "+summarizeActivity(activity))
 			}
 			return "Today you've recorded that:\n" + strings.Join(summaries, "\n")
 		}
