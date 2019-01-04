@@ -37,14 +37,26 @@ func parseMessage(client WitClient, message string) (parsedWitMessage, string) {
 
 func determineWitParser(response witai.MessageResponse) func(witai.MessageResponse) parsedWitMessage {
 	for entityName := range response.Entities {
+		if entityName == "programming" {
+			return genericParser(types.ActivityProgramming, map[string]struct{}{"duration": {}})
+		}
+		if entityName == "laundry" {
+			return genericParser(types.ActivityLaundry, map[string]struct{}{"quantity": {}})
+		}
 		if entityName == "running" {
 			return genericParser(types.ActivityRunning, map[string]struct{}{"duration": {}, "distance": {}})
 		}
+		if entityName == "meeting" {
+			return genericParser(types.ActivityMeetings, map[string]struct{}{"duration": {}, "quantity": {}})
+		}
+		if entityName == "reading" {
+			return genericParser(types.ActivityReading, map[string]struct{}{"duration": {}, "quantity": {}})
+		}
+		if entityName == "yoga" {
+			return genericParser(types.ActivityYoga, map[string]struct{}{"duration": {}})
+		}
 		if entityName == "climbing" {
 			return genericParser(types.ActivityClimbing, map[string]struct{}{"duration": {}})
-		}
-		if entityName == "programming" {
-			return genericParser(types.ActivityProgramming, map[string]struct{}{"duration": {}})
 		}
 	}
 	// TODO: Add more parsers
@@ -77,6 +89,7 @@ func genericParser(
 					parsedMessage.newActivity.Count = *distance
 				}
 			}
+			// TODO: Figure out how to parse quantities.
 		}
 		return parsedMessage
 	}
@@ -142,22 +155,32 @@ func parseDuration(entity interface{}) *time.Duration {
 }
 
 var TestMessages = []string{
-	"Paula and I went on a 10 mile hike for 4 hours",
-	"Adam and I went to a movie",
-	"Had a meeting with Braden",
-	"Met with Bill",
-	"Did 6 loads of laundry",
-	"Read 100 pages in 2 hours",
-	"Did yoga for an hour",
 	"Went climbing for 2 hours",
+	"Climbed for 2 hours",
+
 	"Ran 5 miles in 30 minutes",
 	"Ran 4 miles in 28 minutes",
 	"Went on a 4 mile run",
+
+	"Programmed for 10 hours",
+
+	"Went to 4 meetings for 5 hours",
+	"Met for 3 hours 6 times",
+	"Had a meeting with Braden",
+	"Met with Bill",
+
+	"Did 2 loads of laundry",
+	"Did 6 loads of laundry",
+
+	"Read 100 pages in 2 hours",
+
+	"Did yoga for an hour",
+
+	// Not yet categorized:
 	"Walked to the store",
 	"Watched a movie with Sam",
-	"Played Fortnite with Sam and Braden",
 	"Ate lunch with Adam",
-	"Programmed for 10 hours",
-	"Climbed for 2 hours",
-	"Did 2 loads of laundry",
+	"Adam and I went to a movie",
+	"Paula and I went on a 10 mile hike for 4 hours",
+	"Played Fortnite with Sam and Braden",
 }

@@ -207,7 +207,7 @@ func TestProgramming(t *testing.T) {
 	runTest(t, inputs, expectedOutputs, activity)
 
 	// Now do it fast this time.
-	witResponse := loadTestData(t)[15].resp
+	witResponse := loadTestData(t)[5].resp
 	inputs = []string{inputs[0], inputs[1], inputs[3]}
 	expectedOutputs = []string{expectedOutputs[0], expectedOutputs[2], expectedOutputs[3]}
 	activity.RawMessages = "wrote CODE\nmeh"
@@ -218,7 +218,7 @@ func TestLaundry(t *testing.T) {
 	inputs := []string{
 		"Start",
 		"LAUNDRY",
-		"5",
+		"2",
 		"great",
 	}
 	expectedOutputs := []string{
@@ -227,12 +227,18 @@ func TestLaundry(t *testing.T) {
 		"Okay, and how did you feel about that?",
 		"I finished writing that down, what activity type would you like to record next?",
 	}
-	runTest(t, inputs, expectedOutputs, types.Activity{
+	activity := types.Activity{
 		Type:        types.ActivityLaundry,
-		Count:       5,
+		Count:       2,
 		Value:       "great",
 		RawMessages: strings.Join(inputs[2:], "\n"),
-	})
+	}
+	runTest(t, inputs, expectedOutputs, activity)
+
+	// Now do it fast this time.
+	witResponse := loadTestData(t)[10].resp
+	activity.RawMessages = "LAUNDRY\n2\ngreat"
+	runTestWithWit(t, witResponse, inputs, expectedOutputs, activity)
 }
 
 func TestRunning(t *testing.T) {
@@ -260,7 +266,7 @@ func TestRunning(t *testing.T) {
 	runTest(t, inputs, expectedOutputs, activity)
 
 	// Now do it fast this time.
-	witResponse := loadTestData(t)[8].resp
+	witResponse := loadTestData(t)[2].resp
 	inputs = []string{inputs[0], inputs[1], inputs[4]}
 	expectedOutputs = []string{expectedOutputs[0], expectedOutputs[3], expectedOutputs[4]}
 	activity.RawMessages = "running\ngreat"
@@ -272,7 +278,7 @@ func TestMeetings(t *testing.T) {
 		"Start",
 		"meeting",
 		"4",
-		"4h",
+		"5h",
 		"great",
 	}
 	expectedOutputs := []string{
@@ -282,13 +288,21 @@ func TestMeetings(t *testing.T) {
 		"Okay, and how did you feel about that?",
 		"I finished writing that down, what activity type would you like to record next?",
 	}
-	runTest(t, inputs, expectedOutputs, types.Activity{
+	activity := types.Activity{
 		Type:        types.ActivityMeetings,
 		Count:       4,
-		Duration:    4 * time.Hour,
+		Duration:    5 * time.Hour,
 		Value:       "great",
 		RawMessages: strings.Join(inputs[2:], "\n"),
-	})
+	}
+	runTest(t, inputs, expectedOutputs, activity)
+
+	// Now do it fast this time.
+	witResponse := loadTestData(t)[6].resp
+	inputs = []string{inputs[0], inputs[1], inputs[2], inputs[4]}
+	expectedOutputs = []string{expectedOutputs[0], expectedOutputs[1], expectedOutputs[3], expectedOutputs[4]}
+	activity.RawMessages = "meeting\n4\ngreat"
+	runTestWithWit(t, witResponse, inputs, expectedOutputs, activity)
 }
 
 func TestReading(t *testing.T) {
@@ -306,13 +320,21 @@ func TestReading(t *testing.T) {
 		"Okay, and how did you feel about that?",
 		"I finished writing that down, what activity type would you like to record next?",
 	}
-	runTest(t, inputs, expectedOutputs, types.Activity{
+	activity := types.Activity{
 		Type:        types.ActivityReading,
 		Count:       100,
 		Duration:    2 * time.Hour,
 		Value:       "great",
 		RawMessages: strings.Join(inputs[2:], "\n"),
-	})
+	}
+	runTest(t, inputs, expectedOutputs, activity)
+
+	// Now do it fast this time.
+	witResponse := loadTestData(t)[12].resp
+	inputs = []string{inputs[0], inputs[1], inputs[2], inputs[4]}
+	expectedOutputs = []string{expectedOutputs[0], expectedOutputs[1], expectedOutputs[3], expectedOutputs[4]}
+	activity.RawMessages = "reading\n100\ngreat"
+	runTestWithWit(t, witResponse, inputs, expectedOutputs, activity)
 }
 
 func TestClimbing(t *testing.T) {
@@ -337,7 +359,7 @@ func TestClimbing(t *testing.T) {
 	runTest(t, inputs, expectedOutputs, activity)
 
 	// Now do it fast this time.
-	witResponse := loadTestData(t)[7].resp
+	witResponse := loadTestData(t)[0].resp
 	inputs = []string{inputs[0], inputs[1], inputs[3]}
 	expectedOutputs = []string{expectedOutputs[0], expectedOutputs[2], expectedOutputs[3]}
 	activity.RawMessages = "climbing\ngreat"
@@ -348,7 +370,7 @@ func TestYoga(t *testing.T) {
 	inputs := []string{
 		"Start",
 		"yoga",
-		"2h",
+		"1h",
 		"great",
 	}
 	expectedOutputs := []string{
@@ -357,10 +379,18 @@ func TestYoga(t *testing.T) {
 		"Okay, and how did you feel about that?",
 		"I finished writing that down, what activity type would you like to record next?",
 	}
-	runTest(t, inputs, expectedOutputs, types.Activity{
+	activity := types.Activity{
 		Type:        types.ActivityYoga,
-		Duration:    2 * time.Hour,
+		Duration:    time.Hour,
 		Value:       "great",
 		RawMessages: strings.Join(inputs[2:], "\n"),
-	})
+	}
+	runTest(t, inputs, expectedOutputs, activity)
+
+	// Now do it fast this time.
+	witResponse := loadTestData(t)[13].resp
+	inputs = []string{inputs[0], inputs[1], inputs[3]}
+	expectedOutputs = []string{expectedOutputs[0], expectedOutputs[2], expectedOutputs[3]}
+	activity.RawMessages = "yoga\ngreat"
+	runTestWithWit(t, witResponse, inputs, expectedOutputs, activity)
 }

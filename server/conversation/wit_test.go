@@ -44,7 +44,7 @@ func parseData(t *testing.T, index int) parsedWitMessage {
 }
 
 func TestParseProgramming(t *testing.T) {
-	parsed := parseData(t, 15)
+	parsed := parseData(t, 5)
 	assert.Equal(t, parsed.statesToSkip, map[stateType]struct{}{
 		askingActivityDuration: {},
 	})
@@ -54,8 +54,17 @@ func TestParseProgramming(t *testing.T) {
 	})
 }
 
+func TestParseLaundry(t *testing.T) {
+	parsed := parseData(t, 10)
+	// TODO: Figure out how to get the quantity too.
+	assert.Equal(t, parsed.statesToSkip, map[stateType]struct{}{})
+	assert.Equal(t, parsed.newActivity, &types.Activity{
+		Type: types.ActivityLaundry,
+	})
+}
+
 func TestParseRunning(t *testing.T) {
-	parsed := parseData(t, 8)
+	parsed := parseData(t, 2)
 	assert.Equal(t, parsed.statesToSkip, map[stateType]struct{}{
 		askingActivityCount:    {},
 		askingActivityDuration: {},
@@ -67,8 +76,37 @@ func TestParseRunning(t *testing.T) {
 	})
 }
 
+func TestParseMeetings(t *testing.T) {
+	parsed := parseData(t, 6)
+	// TODO: Figure out how to get the quantity too.
+	assert.Equal(t, parsed.statesToSkip, map[stateType]struct{}{askingActivityDuration: {}})
+	assert.Equal(t, parsed.newActivity, &types.Activity{
+		Type:     types.ActivityMeetings,
+		Duration: 5 * time.Hour,
+	})
+}
+
+func TestParseReading(t *testing.T) {
+	parsed := parseData(t, 12)
+	// TODO: Figure out how to get the quantity too.
+	assert.Equal(t, parsed.statesToSkip, map[stateType]struct{}{askingActivityDuration: {}})
+	assert.Equal(t, parsed.newActivity, &types.Activity{
+		Type:     types.ActivityReading,
+		Duration: 2 * time.Hour,
+	})
+}
+
+func TestParseYoga(t *testing.T) {
+	parsed := parseData(t, 13)
+	assert.Equal(t, parsed.statesToSkip, map[stateType]struct{}{askingActivityDuration: {}})
+	assert.Equal(t, parsed.newActivity, &types.Activity{
+		Type:     types.ActivityYoga,
+		Duration: time.Hour,
+	})
+}
+
 func TestParseClimbing(t *testing.T) {
-	parsed := parseData(t, 7)
+	parsed := parseData(t, 0)
 	assert.Equal(t, parsed.statesToSkip, map[stateType]struct{}{askingActivityDuration: {}})
 	assert.Equal(t, parsed.newActivity, &types.Activity{
 		Type:     types.ActivityClimbing,
