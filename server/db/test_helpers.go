@@ -22,15 +22,15 @@ func TestOnlyMockImpl() Database {
 		activity: make(map[types.UserID][]types.Activity),
 	}
 }
-func (t *testImpl) AddOrGetUser(fbID string, tz *time.Location) (types.UserID, *time.Location, error) {
+func (t *testImpl) AddOrGetUser(fbID string, tz *time.Location) (types.UserID, *time.Location, bool, error) {
 	if val, ok := t.users[fbID]; ok {
 		tz := t.idToTZ[val]
-		return val, tz, nil
+		return val, tz, false, nil
 	}
 	userID := types.UserID(rand.Int63())
 	t.users[fbID] = userID
 	t.idToTZ[userID] = tz
-	return userID, tz, nil
+	return userID, tz, true, nil
 }
 
 func (t *testImpl) SetTimezone(userID types.UserID, tz *time.Location) error {

@@ -85,13 +85,22 @@ func (m *managerImpl) start() {
 	}()
 }
 
+const (
+	newUserWelcomeMessage = "Welcome! You can tell me activities that you've done and I'll remember them for you.\n" +
+		"To get started, say something like \"day\", answer my questions, then say \"summary\" afterwards.\n" +
+		"Please also tell me your timezone by saying \"timezone\" to make sure I know what day it is for you.\n" +
+		"You can say \"help\" for other commands.\n"
+	helpMessage = "Say \"activities\" to see the available activity types.\n" +
+		"Say \"summary\" to see what you've recorded today.\n" +
+		"Say \"timezone\" to see and change your timezone.\n" +
+		"If you ever need to stop or quit recording a message, either word works."
+)
+
 func (m *managerImpl) Handle(fbID string, message string) string {
 	message = strings.Replace(message, "\n", " ", -1)
 	command := strings.ToLower(message)
 	if command == "help" {
-		return "Say \"start\" to begin. " +
-			"Say \"finished\" when you're done. " +
-			"At any point feel free to \"quit\"."
+		return helpMessage
 	}
 	if command == "activities" {
 		return "Available activities are the following: " +
@@ -101,11 +110,8 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 	defer m.lock.Unlock()
 	curState, ok := m.currentMessages[fbID]
 	if !ok {
-		if command != "start" && command != "hello" && command != "hi" {
-			return "Sorry, your conversation might have timed out. Please start again."
-		}
 		// Load the user's information
-		userID, timezone, err := m.database.AddOrGetUser(fbID, time.UTC)
+		userID, timezone, newUser, err := m.database.AddOrGetUser(fbID, time.UTC)
 		if err != nil {
 			log.Println("Error loading user: ", err.Error())
 			return "Sorry, I can't handle new conversations at this time. Try again shortly."
@@ -119,7 +125,10 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 			userID:       userID,
 			userTimezone: timezone,
 		}
-		return "Hello! What type of activity do you want to record?"
+		if newUser {
+			return newUserWelcomeMessage
+		}
+		return "Welcome back! What activity do you want to record?"
 	}
 	// We already have a conversation going on, check for a few commands
 	if command == "quit" || command == "abort" || command == "done" || command == "finished" || command == "stop" {
@@ -245,7 +254,7 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 		if nextState == askingActivityType {
 			// Save the messages!
 			// Note: This timezone value can always be changed later.
-			userID, _, err := m.database.AddOrGetUser(fbID, time.UTC)
+			userID, _, _, err := m.database.AddOrGetUser(fbID, time.UTC)
 			if err != nil {
 				log.Println("Error adding user: ", err.Error())
 				return "Whoops, there was a problem saving your activity, try again shortly."

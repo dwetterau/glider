@@ -10,7 +10,7 @@ import (
 )
 
 type Database interface {
-	AddOrGetUser(fbID string, timezone *time.Location) (types.UserID, *time.Location, error)
+	AddOrGetUser(fbID string, timezone *time.Location) (types.UserID, *time.Location, bool, error)
 	SetTimezone(userID types.UserID, tz *time.Location) error
 	AddOrUpdateActivity(userID types.UserID, activity types.Activity) (types.ActivityID, error)
 	ActivityForUser(userID types.UserID) ([]types.Activity, error)
@@ -81,56 +81,56 @@ type databaseImpl struct {
 
 var _ Database = &databaseImpl{}
 
-func (d *databaseImpl) AddOrGetUser(fbID string, timezone *time.Location) (types.UserID, *time.Location, error) {
+func (d *databaseImpl) AddOrGetUser(fbID string, timezone *time.Location) (types.UserID, *time.Location, bool, error) {
 	tx, err := d.db.Begin()
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, false, err
 	}
 	q, err := tx.Prepare("SELECT id, timezone FROM users WHERE fb_id = ?")
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, false, err
 	}
 	rows, err := q.Query(fbID)
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, false, err
 	}
 	for rows.Next() {
 		var userID types.UserID
 		var timezoneRaw string
 		err = rows.Scan(&userID, &timezoneRaw)
 		if err != nil {
-			return 0, nil, err
+			return 0, nil, false, err
 		}
 		err = tx.Rollback()
 		if err != nil {
-			return 0, nil, err
+			return 0, nil, false, err
 		}
 		timezone, err := time.LoadLocation(timezoneRaw)
 		if err != nil {
-			return 0, nil, err
+			return 0, nil, false, err
 		}
-		return userID, timezone, nil
+		return userID, timezone, false, nil
 	}
 
 	// Otherwise, we need to insert the user
 	q, err = tx.Prepare("INSERT INTO users (fb_id, timezone) VALUES (?, ?)")
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, false, err
 	}
 	res, err := q.Exec(fbID, timezone.String())
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, false, err
 	}
 
 	lastInsertID, err := res.LastInsertId()
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, false, err
 	}
 	err = tx.Commit()
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, false, err
 	}
-	return types.UserID(lastInsertID), timezone, nil
+	return types.UserID(lastInsertID), timezone, true, nil
 }
 
 func (d *databaseImpl) SetTimezone(userID types.UserID, timezone *time.Location) error {

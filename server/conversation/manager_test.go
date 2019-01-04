@@ -29,14 +29,14 @@ func TestSetTimezone(t *testing.T) {
 		outputs = append(outputs, impl.Handle("fb1", input))
 	}
 	expectedOutputs := []string{
-		"Hello! What type of activity do you want to record?",
+		newUserWelcomeMessage,
 		"Your current timezone is UTC. What would you like to change it to?",
 		"Thanks! Now what kind of activity would you like to record?",
 		"Have a nice day!",
 	}
 	assert.Equal(t, expectedOutputs, outputs)
 
-	_, tz, err := impl.database.AddOrGetUser("fb1", time.UTC)
+	_, tz, _, err := impl.database.AddOrGetUser("fb1", time.UTC)
 	require.NoError(t, err)
 	assert.Equal(t, "America/Los_Angeles", tz.String())
 }
@@ -46,7 +46,7 @@ func TestSummary(t *testing.T) {
 		database:        db.TestOnlyMockImpl(),
 		currentMessages: make(map[string]*state),
 	}
-	userID, _, err := impl.database.AddOrGetUser("fb1", time.UTC)
+	userID, _, _, err := impl.database.AddOrGetUser("fb1", time.UTC)
 	require.NoError(t, err)
 
 	_, utcDate := nowAndUTCDate(time.UTC)
@@ -70,7 +70,7 @@ func TestSummary(t *testing.T) {
 		outputs = append(outputs, impl.Handle("fb1", input))
 	}
 	expectedOutputs := []string{
-		"Hello! What type of activity do you want to record?",
+		"Welcome back! What activity do you want to record?",
 		"Today you've recorded that:\n\n" +
 			"-  Your day was great.\n" +
 			"-  You climbed for 1h and felt good about it.",
@@ -105,7 +105,7 @@ func runTestWithWit(
 		outputs = append(outputs, impl.Handle("fb1", input))
 	}
 	assert.Equal(t, expectedOutputs, outputs)
-	userID, _, err := impl.database.AddOrGetUser("fb1", time.UTC)
+	userID, _, _, err := impl.database.AddOrGetUser("fb1", time.UTC)
 	require.NoError(t, err)
 	activities, err := impl.database.ActivityForUser(userID)
 	assert.Len(t, activities, 1)
@@ -148,7 +148,7 @@ func TestMulti(t *testing.T) {
 		outputs = append(outputs, impl.Handle("fb1", input))
 	}
 	expectedOutputs := []string{
-		"Hello! What type of activity do you want to record?",
+		newUserWelcomeMessage,
 		"How was your day?",
 		"I finished writing that down, what activity type would you like to record next?",
 		"How long did you do yoga for?",
@@ -159,7 +159,7 @@ func TestMulti(t *testing.T) {
 	assert.Equal(t, expectedOutputs, outputs)
 
 	// Make sure both activities were recorded
-	userID, _, err := impl.database.AddOrGetUser("fb1", time.UTC)
+	userID, _, _, err := impl.database.AddOrGetUser("fb1", time.UTC)
 	require.NoError(t, err)
 	activities, err := impl.database.ActivityForUser(userID)
 	assert.Len(t, activities, 2)
@@ -173,7 +173,7 @@ func TestOverallDay(t *testing.T) {
 		"finished",
 	}
 	expectedOutputs := []string{
-		"Hello! What type of activity do you want to record?",
+		newUserWelcomeMessage,
 		"How was your day?",
 		"I finished writing that down, what activity type would you like to record next?",
 		"Have a nice day!",
@@ -193,7 +193,7 @@ func TestProgramming(t *testing.T) {
 		"meh",
 	}
 	expectedOutputs := []string{
-		"Hello! What type of activity do you want to record?",
+		newUserWelcomeMessage,
 		"How long did you program for?",
 		"Okay, and how did you feel about that?",
 		"I finished writing that down, what activity type would you like to record next?",
@@ -222,7 +222,7 @@ func TestLaundry(t *testing.T) {
 		"great",
 	}
 	expectedOutputs := []string{
-		"Hello! What type of activity do you want to record?",
+		newUserWelcomeMessage,
 		"How many loads of laundry did you do?",
 		"Okay, and how did you feel about that?",
 		"I finished writing that down, what activity type would you like to record next?",
@@ -250,7 +250,7 @@ func TestRunning(t *testing.T) {
 		"great",
 	}
 	expectedOutputs := []string{
-		"Hello! What type of activity do you want to record?",
+		newUserWelcomeMessage,
 		"How far did you run in miles?",
 		"How long did you run for?",
 		"Okay, and how did you feel about that?",
@@ -282,7 +282,7 @@ func TestMeetings(t *testing.T) {
 		"great",
 	}
 	expectedOutputs := []string{
-		"Hello! What type of activity do you want to record?",
+		newUserWelcomeMessage,
 		"How many meetings did you go to?",
 		"What was the total time you spent in meetings?",
 		"Okay, and how did you feel about that?",
@@ -314,7 +314,7 @@ func TestReading(t *testing.T) {
 		"great",
 	}
 	expectedOutputs := []string{
-		"Hello! What type of activity do you want to record?",
+		newUserWelcomeMessage,
 		"How many pages did you read?",
 		"How long did you read for?",
 		"Okay, and how did you feel about that?",
@@ -345,7 +345,7 @@ func TestClimbing(t *testing.T) {
 		"great",
 	}
 	expectedOutputs := []string{
-		"Hello! What type of activity do you want to record?",
+		newUserWelcomeMessage,
 		"How long did you climb for?",
 		"Okay, and how did you feel about that?",
 		"I finished writing that down, what activity type would you like to record next?",
@@ -374,7 +374,7 @@ func TestYoga(t *testing.T) {
 		"great",
 	}
 	expectedOutputs := []string{
-		"Hello! What type of activity do you want to record?",
+		newUserWelcomeMessage,
 		"How long did you do yoga for?",
 		"Okay, and how did you feel about that?",
 		"I finished writing that down, what activity type would you like to record next?",
