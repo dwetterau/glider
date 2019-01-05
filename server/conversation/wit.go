@@ -41,16 +41,16 @@ func determineWitParser(response witai.MessageResponse) func(witai.MessageRespon
 			return genericParser(types.ActivityProgramming, map[string]struct{}{"duration": {}})
 		}
 		if entityName == "laundry" {
-			return genericParser(types.ActivityLaundry, map[string]struct{}{"quantity": {}})
+			return genericParser(types.ActivityLaundry, map[string]struct{}{"loads": {}})
 		}
 		if entityName == "running" {
 			return genericParser(types.ActivityRunning, map[string]struct{}{"duration": {}, "distance": {}})
 		}
 		if entityName == "meeting" {
-			return genericParser(types.ActivityMeetings, map[string]struct{}{"duration": {}, "quantity": {}})
+			return genericParser(types.ActivityMeetings, map[string]struct{}{"duration": {}, "meetings": {}})
 		}
 		if entityName == "reading" {
-			return genericParser(types.ActivityReading, map[string]struct{}{"duration": {}, "quantity": {}})
+			return genericParser(types.ActivityReading, map[string]struct{}{"duration": {}, "pages": {}})
 		}
 		if entityName == "yoga" {
 			return genericParser(types.ActivityYoga, map[string]struct{}{"duration": {}})
@@ -61,6 +61,12 @@ func determineWitParser(response witai.MessageResponse) func(witai.MessageRespon
 	}
 	// TODO: Add more parsers
 	return nil
+}
+
+var numberParserNames = map[string]struct{}{
+	"loads":    {},
+	"pages":    {},
+	"meetings": {},
 }
 
 func genericParser(
@@ -75,27 +81,39 @@ func genericParser(
 			statesToSkip: make(map[stateType]struct{}),
 		}
 		for name, entity := range response.Entities {
-			if _, ok := namesToParse["duration"]; ok && name == "duration" {
+			if _, ok := namesToParse[name]; !ok {
+				continue
+			}
+			if name == "duration" {
 				duration := parseDuration(entity)
 				if duration != nil {
 					parsedMessage.statesToSkip[askingActivityDuration] = struct{}{}
 					parsedMessage.newActivity.Duration = *duration
+					continue
 				}
 			}
-			if _, ok := namesToParse["distance"]; ok && name == "distance" {
+			if name == "distance" {
 				distance := parseDistance(entity)
 				if distance != nil {
 					parsedMessage.statesToSkip[askingActivityCount] = struct{}{}
 					parsedMessage.newActivity.Count = *distance
+					continue
 				}
 			}
-			// TODO: Figure out how to parse quantities.
+			if _, ok := numberParserNames[name]; ok {
+				number := parseNumber(entity)
+				if number != nil {
+					parsedMessage.statesToSkip[askingActivityCount] = struct{}{}
+					parsedMessage.newActivity.Count = *number
+					continue
+				}
+			}
 		}
 		return parsedMessage
 	}
 }
 
-func parseDistance(entity interface{}) *int64 {
+func parseNumber(entity interface{}) *int64 {
 	entityList, ok := entity.([]interface{})
 	if !ok {
 		return nil
@@ -108,7 +126,6 @@ func parseDistance(entity interface{}) *int64 {
 	if !ok {
 		return nil
 	}
-	// TODO: This should look at the units.
 	valInterface, ok := valueMap["value"]
 	if !ok {
 		return nil
@@ -119,6 +136,11 @@ func parseDistance(entity interface{}) *int64 {
 	}
 	local := int64(math.Round(val))
 	return &local
+}
+
+func parseDistance(entity interface{}) *int64 {
+	// TODO: This should look at the units.
+	return parseNumber(entity)
 }
 
 func parseDuration(entity interface{}) *time.Duration {

@@ -237,7 +237,9 @@ func TestLaundry(t *testing.T) {
 
 	// Now do it fast this time.
 	witResponse := loadTestData(t)[10].resp
-	activity.RawMessages = "LAUNDRY\n2\ngreat"
+	activity.RawMessages = "LAUNDRY\ngreat"
+	inputs = []string{inputs[0], inputs[1], inputs[3]}
+	expectedOutputs = []string{expectedOutputs[0], expectedOutputs[2], expectedOutputs[3]}
 	runTestWithWit(t, witResponse, inputs, expectedOutputs, activity)
 }
 
@@ -299,9 +301,9 @@ func TestMeetings(t *testing.T) {
 
 	// Now do it fast this time.
 	witResponse := loadTestData(t)[6].resp
-	inputs = []string{inputs[0], inputs[1], inputs[2], inputs[4]}
-	expectedOutputs = []string{expectedOutputs[0], expectedOutputs[1], expectedOutputs[3], expectedOutputs[4]}
-	activity.RawMessages = "meeting\n4\ngreat"
+	inputs = []string{inputs[0], inputs[1], inputs[4]}
+	expectedOutputs = []string{expectedOutputs[0], expectedOutputs[3], expectedOutputs[4]}
+	activity.RawMessages = "meeting\ngreat"
 	runTestWithWit(t, witResponse, inputs, expectedOutputs, activity)
 }
 
@@ -331,9 +333,9 @@ func TestReading(t *testing.T) {
 
 	// Now do it fast this time.
 	witResponse := loadTestData(t)[12].resp
-	inputs = []string{inputs[0], inputs[1], inputs[2], inputs[4]}
-	expectedOutputs = []string{expectedOutputs[0], expectedOutputs[1], expectedOutputs[3], expectedOutputs[4]}
-	activity.RawMessages = "reading\n100\ngreat"
+	inputs = []string{inputs[0], inputs[1], inputs[4]}
+	expectedOutputs = []string{expectedOutputs[0], expectedOutputs[3], expectedOutputs[4]}
+	activity.RawMessages = "reading\ngreat"
 	runTestWithWit(t, witResponse, inputs, expectedOutputs, activity)
 }
 

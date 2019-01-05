@@ -56,10 +56,10 @@ func TestParseProgramming(t *testing.T) {
 
 func TestParseLaundry(t *testing.T) {
 	parsed := parseData(t, 10)
-	// TODO: Figure out how to get the quantity too.
-	assert.Equal(t, parsed.statesToSkip, map[stateType]struct{}{})
+	assert.Equal(t, parsed.statesToSkip, map[stateType]struct{}{askingActivityCount: {}})
 	assert.Equal(t, parsed.newActivity, &types.Activity{
-		Type: types.ActivityLaundry,
+		Type:  types.ActivityLaundry,
+		Count: 2,
 	})
 }
 
@@ -78,21 +78,21 @@ func TestParseRunning(t *testing.T) {
 
 func TestParseMeetings(t *testing.T) {
 	parsed := parseData(t, 6)
-	// TODO: Figure out how to get the quantity too.
-	assert.Equal(t, parsed.statesToSkip, map[stateType]struct{}{askingActivityDuration: {}})
+	assert.Equal(t, parsed.statesToSkip, map[stateType]struct{}{askingActivityDuration: {}, askingActivityCount: {}})
 	assert.Equal(t, parsed.newActivity, &types.Activity{
 		Type:     types.ActivityMeetings,
 		Duration: 5 * time.Hour,
+		Count:    4,
 	})
 }
 
 func TestParseReading(t *testing.T) {
 	parsed := parseData(t, 12)
-	// TODO: Figure out how to get the quantity too.
-	assert.Equal(t, parsed.statesToSkip, map[stateType]struct{}{askingActivityDuration: {}})
+	assert.Equal(t, parsed.statesToSkip, map[stateType]struct{}{askingActivityDuration: {}, askingActivityCount: {}})
 	assert.Equal(t, parsed.newActivity, &types.Activity{
 		Type:     types.ActivityReading,
 		Duration: 2 * time.Hour,
+		Count:    100,
 	})
 }
 
