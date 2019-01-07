@@ -51,6 +51,22 @@ func TestSummary(t *testing.T) {
 
 	_, utcDate := nowAndUTCDate(time.Now(), time.UTC)
 	sameTime := utcDate.Local()
+	inputs := []string{
+		"Start",
+		"summary",
+		"done",
+	}
+	outputs := make([]string, 0, len(inputs))
+	for _, input := range inputs {
+		outputs = append(outputs, impl.Handle("fb1", input))
+	}
+	expectedOutputs := []string{
+		"Welcome back! What activity do you want to record?",
+		"You haven't recorded any activities yet today.",
+		"Have a nice day!",
+	}
+	assert.Equal(t, expectedOutputs, outputs)
+
 	activities := []types.Activity{
 		{Type: types.ActivityClimbing, Duration: time.Hour, Value: "good", UTCDate: utcDate},
 		{Type: types.ActivityOverallDay, Value: "great", UTCDate: sameTime},
@@ -61,19 +77,16 @@ func TestSummary(t *testing.T) {
 		_, err = impl.database.AddOrUpdateActivity(userID, activity)
 		require.NoError(t, err)
 	}
-	inputs := []string{
-		"Start",
-		"summary",
-	}
-	outputs := make([]string, 0, len(inputs))
+	outputs = make([]string, 0, len(inputs))
 	for _, input := range inputs {
 		outputs = append(outputs, impl.Handle("fb1", input))
 	}
-	expectedOutputs := []string{
+	expectedOutputs = []string{
 		"Welcome back! What activity do you want to record?",
 		"Today you've recorded that:\n\n" +
 			"-  Your day was great.\n" +
 			"-  You climbed for 1h and felt good about it.",
+		"Have a nice day!",
 	}
 	assert.Equal(t, expectedOutputs, outputs)
 }

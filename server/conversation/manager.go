@@ -151,9 +151,6 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 			if err != nil {
 				return "There was an error fetching your summary. Try again shortly."
 			}
-			if len(activities) == 0 {
-				return "You haven't recorded any activities yet today."
-			}
 			sort.Slice(activities, func(i, j int) bool {
 				return activities[i].Type < activities[j].Type
 			})
@@ -165,6 +162,9 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 					continue
 				}
 				summaries = append(summaries, "-  "+summarizeActivity(activity))
+			}
+			if len(summaries) == 0 {
+				return "You haven't recorded any activities yet today."
 			}
 			return "Today you've recorded that:\n\n" + strings.Join(summaries, "\n")
 		}
@@ -502,6 +502,7 @@ func parseActivityValue(command string) (string, string) {
 		"neutral":   "neutral",
 		"fine":      "neutral",
 		"ok":        "neutral",
+		"okay":      "neutral",
 		"alright":   "neutral",
 		"meh":       "neutral",
 		"good":      "good",
