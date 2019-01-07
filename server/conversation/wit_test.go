@@ -64,15 +64,24 @@ func TestParseLaundry(t *testing.T) {
 }
 
 func TestParseRunning(t *testing.T) {
-	parsed := parseData(t, 2)
+	parsed := parseData(t, 3)
 	assert.Equal(t, parsed.statesToSkip, map[stateType]struct{}{
 		askingActivityCount:    {},
 		askingActivityDuration: {},
 	})
 	assert.Equal(t, parsed.newActivity, &types.Activity{
 		Type:     types.ActivityRunning,
-		Duration: 30 * time.Minute,
-		Count:    5,
+		Duration: 28 * time.Minute,
+		Count:    4,
+	})
+}
+
+func TestParseRunningWithDateAdjustment(t *testing.T) {
+	parsed := parseData(t, 2)
+	assert.Equal(t, parsed.statesToSkip, map[stateType]struct{}{})
+	assert.NotNil(t, parsed.desiredTime)
+	assert.Equal(t, parsed.newActivity, &types.Activity{
+		Type: types.ActivityRunning,
 	})
 }
 

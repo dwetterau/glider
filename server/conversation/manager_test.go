@@ -49,7 +49,7 @@ func TestSummary(t *testing.T) {
 	userID, _, _, err := impl.database.AddOrGetUser("fb1", time.UTC)
 	require.NoError(t, err)
 
-	_, utcDate := nowAndUTCDate(time.UTC)
+	_, utcDate := nowAndUTCDate(time.Now(), time.UTC)
 	sameTime := utcDate.Local()
 	activities := []types.Activity{
 		{Type: types.ActivityClimbing, Duration: time.Hour, Value: "good", UTCDate: utcDate},
@@ -247,8 +247,8 @@ func TestRunning(t *testing.T) {
 	inputs := []string{
 		"Start",
 		"running",
-		"5",
-		"30m",
+		"4",
+		"28m",
 		"great",
 	}
 	expectedOutputs := []string{
@@ -260,15 +260,15 @@ func TestRunning(t *testing.T) {
 	}
 	activity := types.Activity{
 		Type:        types.ActivityRunning,
-		Count:       5,
-		Duration:    30 * time.Minute,
+		Count:       4,
+		Duration:    28 * time.Minute,
 		Value:       "great",
 		RawMessages: strings.Join(inputs[2:], "\n"),
 	}
 	runTest(t, inputs, expectedOutputs, activity)
 
 	// Now do it fast this time.
-	witResponse := loadTestData(t)[2].resp
+	witResponse := loadTestData(t)[3].resp
 	inputs = []string{inputs[0], inputs[1], inputs[4]}
 	expectedOutputs = []string{expectedOutputs[0], expectedOutputs[3], expectedOutputs[4]}
 	activity.RawMessages = "running\ngreat"

@@ -17,6 +17,7 @@ var _ WitClient = &witai.Client{}
 
 type parsedWitMessage struct {
 	newActivity  *types.Activity
+	desiredTime  *time.Time
 	statesToSkip map[stateType]struct{}
 }
 
@@ -81,6 +82,9 @@ func genericParser(
 			statesToSkip: make(map[stateType]struct{}),
 		}
 		for name, entity := range response.Entities {
+			if name == "datetime" {
+				parsedMessage.desiredTime = parseDatetime(entity)
+			}
 			if _, ok := namesToParse[name]; !ok {
 				continue
 			}
@@ -176,12 +180,40 @@ func parseDuration(entity interface{}) *time.Duration {
 	return &local
 }
 
+func parseDatetime(entity interface{}) *time.Time {
+	entityList, ok := entity.([]interface{})
+	if !ok {
+		return nil
+	}
+	if len(entityList) != 1 {
+		return nil
+	}
+	entity = entityList[0]
+	valueMap, ok := entity.(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	valInterface, ok := valueMap["value"]
+	if !ok {
+		return nil
+	}
+	val, ok := valInterface.(string)
+	if !ok {
+		return nil
+	}
+	local, err := time.Parse("2006-01-02T15:04:05.999-07:00", val)
+	if err != nil {
+		return nil
+	}
+	return &local
+}
+
 var TestMessages = []string{
 	"Went climbing for 2 hours",
 	"Climbed for 2 hours",
 
 	"Ran 5 miles in 30 minutes",
-	"Ran 4 miles in 28 minutes",
+	"4 mile run for 28 minutes",
 	"Went on a 4 mile run",
 
 	"Programmed for 10 hours",
@@ -194,7 +226,7 @@ var TestMessages = []string{
 	"Did 2 loads of laundry",
 	"Did 6 loads of laundry",
 
-	"Read 100 pages in 2 hours",
+	"Read 100 pages for 2 hours",
 
 	"Did yoga for an hour",
 

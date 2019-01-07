@@ -158,7 +158,7 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 				return activities[i].Type < activities[j].Type
 			})
 			summaries := make([]string, 0, len(activities))
-			_, utcDate := nowAndUTCDate(curState.userTimezone)
+			_, utcDate := nowAndUTCDate(time.Now(), curState.userTimezone)
 			for _, activity := range activities {
 				// Filter out ones not today.
 				if activity.UTCDate.Unix() != utcDate.Unix() {
@@ -178,7 +178,10 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 		// Set up all the state properly to parse out the rest of the fields
 		if parsedWitMessage.newActivity != nil {
 			// Initialize the activity
-			now, utcDate := nowAndUTCDate(curState.userTimezone)
+			now, utcDate := nowAndUTCDate(time.Now(), curState.userTimezone)
+			if parsedWitMessage.desiredTime != nil {
+				now, utcDate = nowAndUTCDate(*parsedWitMessage.desiredTime, curState.userTimezone)
+			}
 			parsedWitMessage.newActivity.UTCDate = utcDate
 			parsedWitMessage.newActivity.ActualTime = now
 			parsedWitMessage.newActivity.RawMessages = message
@@ -220,7 +223,7 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 
 		if curState.activity == nil {
 			// Initialize the activity
-			now, utcDate := nowAndUTCDate(curState.userTimezone)
+			now, utcDate := nowAndUTCDate(time.Now(), curState.userTimezone)
 			activity.Type = curState.currentActivityType
 			activity.UTCDate = utcDate
 			activity.ActualTime = now
@@ -290,8 +293,8 @@ func (m *managerImpl) Handle(fbID string, message string) string {
 	return "Sorry, I can't understand what you're saying. You can say \"help\" for some help getting started."
 }
 
-func nowAndUTCDate(userTimezone *time.Location) (time.Time, time.Time) {
-	now := time.Now().In(userTimezone)
+func nowAndUTCDate(now time.Time, userTimezone *time.Location) (time.Time, time.Time) {
+	now = now.In(userTimezone)
 	year, month, day := now.Date()
 	utcDate, err := time.Parse("2006-01-02", fmt.Sprintf("%04d-%02d-%02d", year, month, day))
 	if err != nil {
